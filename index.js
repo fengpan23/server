@@ -1,57 +1,44 @@
 /**
  * Created by fp on 2016/10/13.
  */
-
+const Events = require('events');
 const Engine = require('engine');
 
-class Index {
-    constructor() {
-        this._engine = new Engine({tableId: 67});
-        this._engine.start();
-
+class Index extends Events{
+    constructor(options) {
+        this._engine = new Engine();
         this._engine.on('request', request => {     //request.content => json {event: String, data: Obj}
-            let action = request.getAttribute('event');
-            if(this[action]){
-                this[action](request);
+            if(options.api){
+                let api = options.api[request.getAttribute('event')];
+                api ? api(request) : request.close('unknown_action');
             }else{
-                console.error('can not find action： ' + action);
-                console.log(request);
+                this.emit('request', request);
             }
+        }).on('reconnect', request => {
+
         });
+
+        this._engine.start();
     };
 
     init(request) {
         console.log('api init');
-        let players = this._engine.getPlayers();
+        let players = this._engine.getClients();
         request.response('game', {s: 122112, c: 2132323, id: players[0].id});
         request.close();
     };
 
-    /**
-     * api user join game and have sit
-     * @param request
-     */
     seat(request) {
 
     };
 
-    /**
-     * api player win game
-     */
     win(request) {
     };
 
-    /**
-     * api user quit
-     * @param request
-     */
     quit(request){
 
     };
 
-    /**
-     * api reconnect
-     */
     reconnect(request){
 
     };
@@ -63,9 +50,6 @@ class Index {
     };
 
     exit() {
-    };
-
-    exceptionhandle(err) {
     };
 }
 
