@@ -4,24 +4,18 @@
 
 "use strict";
 const mysql = require('mysql');
-const cluster = require('./../server/lib/dbcluster.js');
 
-class db {
+class DB {
     constructor() {
     }
 
-
-    query() {
-        let params = common.get_parameter(arguments, ['connection', 'sql']);
-        let me = this;
+    query(dbc, sql) {
         let _query = function (dbc, sql) {
-            return new Promise(function (_res, _rej) {
-                dbc.query(sql, function (err, result, fields) {
-                    me.lastquery = params.sql;
-                    if (err)
-                        _rej(err);
-                    else
-                        _res(result);
+            return new Promise((resolve, reject) => {
+                let select = sql.toUpperCase().startsWith('SELECT')
+
+                dbc.query(sql, (err, result) => {
+                    err ? reject(err) : resolve(result);
                 });
             });
         };
@@ -32,55 +26,31 @@ class db {
                 }, ms)
             });
         };
-        return new Promise(function (resolve, reject) {
-            let start = get_microtime();
-            let dbc = params.connection;
-            let isnew = false;
-            let isselect = false;
-            Promise.resolve().then(function () {
-                if (typeof (dbc) === 'object' && dbc !== null && typeof (dbc.query) === 'function')
+
+        return new Promise((resolve, reject) => {
+            let isNew = false;
+            Promise.resolve().then(() => {
+                if (dbc && typeof dbc === 'object' && typeof (dbc.query) === 'function') {
                     return Promise.resolve(dbc);
-                else {
-                    isnew = true;
-                    return me.begin();
+                }else{
+                    isNew = true;
+                    return this.begin();
                 }
-            }).then(function (_dbc) {
+            }).then(_dbc => {
                 dbc = _dbc;
-                if (params.sql.toUpperCase().startsWith('SELECT'))
-                    isselect = true;
-                return _query(dbc, params.sql);
-            }).then(function (result) {
-                if (isselect && common.empty(result)) {
-                    return _timeout(100).then(function () {
-                        return _query(dbc, params.sql);
+                return _query(dbc, sql);
+            }).then(result => {
+                if (isNew === true) {
+                    return this.commit(dbc).then(() => {
+                        this.destroy(dbc);
+                        return resolve(result);
                     });
                 } else
-                    return Promise.resolve(result);
-            }).then(function (result) {
-                if (isselect && common.empty(result)) {
-                    return _timeout(100).then(function () {
-                        return _query(dbc, params.sql);
-                    });
-                } else
-                    return Promise.resolve(result);
-            }).then(function (result) {
-                if (isnew === true) {
-                    return me.commit(dbc).then(function () {
-                        me.destroy(dbc);
-                        return Promise.resolve(result);
-                    });
-                } else
-                    return Promise.resolve(result);
-            }).then(function (result) {
-                me.elapsedms = get_elapsedms(start);
-                //console.log(me.lastquery, `last:${me.elapsedms}`);
-                resolve(result);
-            }).catch(function (err) {
-                me.elapsedms = get_elapsedms(start);
-                sql_error(err, params.sql);
-                if (isnew === true) {
-                    me.rollback(dbc).then(function () {
-                        me.destroy(dbc);
+                    return resolve(result);
+            }).catch(err => {
+                if (isNew === true) {
+                    this.rollback(dbc).then(() => {
+                        this.destroy(dbc);
                         reject(err);
                     });
                 } else
@@ -786,10 +756,6 @@ const escape = function (value, auto, column) {
             return {offset: 0, limit: 0};
     },
 
-    get_connection = function () {
-        return cluster.getconnection();
-    },
-
     close_connection = function (dbc) {
         if (typeof (dbc) === 'object' && dbc !== null && typeof (dbc.release) === 'function')
             dbc.release();
@@ -800,4 +766,4 @@ const escape = function (value, auto, column) {
         syslog.error(`SQL ERROR: ${err.code}` + (!common.empty(sql) ? "\nSQL: " + sql : ''));
     };
 
-module.exports = new db();
+module.exports = new DB();

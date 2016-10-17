@@ -1,0 +1,18 @@
+{
+  "dbcluster": {
+    "canRetry": true,
+    "removeNodeErrorCount": 5,
+    "restoreNodeTimeout": 30000,
+    "defaultSelector": "RR"
+  },
+  "settimeout":{
+    "configrefresh": 60000,
+    "reloaddbnode" : 3000,
+    "memoryreport":300000,
+    "verify" :[10000, 10000, 30000],
+    "heartbeatreceive" : 10000,
+    "heartbeatsend" : 1000,
+    "initreload":30000
+  },
+  "timezone":"Asia/Kuala_Lumpur"
+}

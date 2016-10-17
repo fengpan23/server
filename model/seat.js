@@ -29,7 +29,7 @@ class Seat {
      * @param params
      * @param order
      */
-    getSeats(dbc, params, order) {
+    find(dbc, params, order) {
         return db.select(dbc, TABLE, DEFAULT_COLUMN, getCond(params), order).then(seats => {
             let results = [];
             seats.forEach(seat => {
@@ -49,7 +49,7 @@ class Seat {
      * @param params
      * @param order
      */
-    getSeat(dbc, params, order) {
+    get(dbc, params, order) {
         return db.one(dbc, TABLE, DEFAULT_COLUMN, getCond(params), order);
     }
 

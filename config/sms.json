@@ -1,0 +1,40 @@
+{
+  "username": "nicesupport",
+  "password": "BWajHmRP",
+  "sender": "test",
+  "service": "GE_NOTICS",
+  "url": {
+    "send": "https://api.silverstreet.com/send.php",
+    "balance": "https://api.silverstreet.com/creditcheck.php"
+  },
+  "responsemsg": {
+    "1": "ok",
+    "01": "ok",
+    "100": "param_missing",
+    "110": "param_bad",
+    "120": "param_invalid",
+    "130": "insufficient_credit"
+  },
+  "errortype": {
+    "SMS_HIGHPAY_NOTICS": {
+      "phone": "60102077655,60163182567,60166771619,60124739230",
+      "content": "[%s] GE high win notice,\nPlayer: %s (%s)\ngame: %s(%s)\nBet/Win/Payout:\n%0.2f/%0.2f/%0.2f"
+    },
+    "SMS_ERROR_NOTICS":{
+      "phone": "60102077655,60193553484,60173780183",
+      "content": "[%s] GE raised out an unexpected error, please check on apierror_logs id = %s\nAffected User : %s (%s)"
+    },
+    "SMS_POOL_NOTICS": {
+      "phone": "60102077655,60193553484,60173780183",
+      "content": "[%s] GE %s (%s) have deplayed %s second, game is going to maintainance"
+    },
+    "SMS_POOL_OVERPAY": {
+      "phone": "60102077655,60193553484,60173780183",
+      "content": "[%s] GE %s (%s) pool currently is MYR%s, game is going to maintainance"
+    },
+    "SMS_HIGHMEMORY_NOTICS": {
+      "phone": "60102077655,60193553484,60173780183",
+      "content": "[%s] tableid %s memory use is %s "
+    }
+  }
+}
