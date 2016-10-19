@@ -6,12 +6,7 @@ const _ = require('underscore');
 const db = require('../libs/db');
 
 const TABLE = 'game_multiplayer_table';
-const DEFAULT_COLUMN = "*";
 
-/**
- * 根据params对象拼凑条件数组
- * @param params
- */
 function _getCond(params) {
     let cond = [];
     if (params.tableid)
@@ -23,13 +18,8 @@ function _getCond(params) {
     return cond;
 }
 
-
-/**
- * 游戏桌子数据模型
- */
 class Table {
     constructor() {
-
     }
 
     /**
@@ -38,7 +28,7 @@ class Table {
      * @param params
      */
     get(dbc, params) {
-        return db.one(dbc, TABLE, DEFAULT_COLUMN, _getCond(params)).then(table => {
+        return db.one(dbc, TABLE, '*', _getCond(params)).then(table => {
             let result = {};
             for(let key in table)
                 result[key.split('_').pop()] = table[key];

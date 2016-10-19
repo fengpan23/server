@@ -5,7 +5,6 @@
 const db = require('../libs/db');
 
 const TABLE = "game_multiplayer_room";
-const DEFAULT_COLUMN = "*";
 
 function getCond(params) {
     let cond = [];
@@ -18,7 +17,7 @@ class Room{
     }
 
     get(dbc, params, order) {
-        return db.one(dbc, TABLE, DEFAULT_COLUMN, getCond(params), order).then(room => {
+        return db.one(dbc, TABLE, '*', getCond(params), order).then(room => {
             let results = {};
             for(let key in room){
                 results[key.split('_').pop()] = room[key];

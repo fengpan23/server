@@ -6,7 +6,6 @@ const _ = require('underscore');
 const db = require('../libs/db');
 
 const TABLE = 'game_multiplayer_seat';
-const DEFAULT_COLUMN = "*";
 
 function getCond(params) {
     let cond = [];
@@ -30,7 +29,7 @@ class Seat {
      * @param order
      */
     find(dbc, params, order) {
-        return db.select(dbc, TABLE, DEFAULT_COLUMN, getCond(params), order).then(seats => {
+        return db.select(dbc, TABLE, '*', getCond(params), order).then(seats => {
             let results = [];
             seats.forEach(seat => {
                 let s = {};
@@ -50,7 +49,7 @@ class Seat {
      * @param order
      */
     get(dbc, params, order) {
-        return db.one(dbc, TABLE, DEFAULT_COLUMN, getCond(params), order);
+        return db.one(dbc, TABLE, '*', getCond(params), order);
     }
 
     /**

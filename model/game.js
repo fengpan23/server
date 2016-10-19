@@ -1,14 +1,11 @@
 /**
  * Created by fp on 2016/10/14.
  */
-
 "use strict";
 const db = require('../libs/db');
+
 const TABLE = 'game';
 
-/**
- * 游戏主记录
- */
 class Game {
     constructor() {
     }

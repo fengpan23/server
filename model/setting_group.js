@@ -3,6 +3,7 @@
  */
 "use strict";
 const db = require('../libs/db');
+
 const TABLE = 'game_group_setting';
 
 class Setting {

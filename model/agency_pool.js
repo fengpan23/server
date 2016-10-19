@@ -2,8 +2,9 @@
  * Created by fp on 2016/10/17.
  */
 "use strict";
+const db = require('../libs/db');
+
 const TABLE = 'game_agent_pool';
-const db = require('../../utils/db');
 
 class AgencyPool {
     constructor() {

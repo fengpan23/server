@@ -1,15 +1,11 @@
 /**
  * Created by fp on 2016/10/17.
  */
-
 "use strict";
 const db = require('../libs/db');
+
 const TABLE = 'agency_game';
 
-/**
- * 根据params对象拼凑条件数组
- * @param params
- */
 function cond(params) {
     let cond = [];
     if (params.agencyid) cond.push({[TABLE + '_agencyid']: params.agencyid});
@@ -17,7 +13,6 @@ function cond(params) {
     if (params.status) cond.push({[TABLE + '_status']: params.status});
     return cond;
 }
-
 
 class AgencyGame{
     constructor() {

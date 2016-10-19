@@ -3,7 +3,6 @@
  */
 
 "use strict";
-const common = require('../../utils/common');
 const configs = require('../../utils/config');
 const db = require('../../utils/db.js');
 const wrong = require('../../utils/wrong');

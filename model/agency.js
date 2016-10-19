@@ -4,6 +4,7 @@
 "use strict";
 const _ = require('underscore');
 const db = require('../libs/db');
+
 const TABLE = 'agency';
 
 class Agency{

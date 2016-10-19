@@ -3,14 +3,11 @@
  */
 "use strict";
 const db = require('../libs/db');
+
 const TABLE = 'game_setting';
 
-/**
- * 游戏配置
- */
 class Setting {
     constructor() {
-
     }
 
     /**
