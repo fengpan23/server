@@ -18,6 +18,7 @@
   "author": "fengpan",
   "license": "ISC",
   "dependencies": {
+    "mysql": "2.9.0",
     "log": "git+https://fengpan23:fengpan123@github.com/fengpan23/log.git",
     "engine": "git+https://fengpan23:fengpan123@github.com/fengpan23/engine.git"
   }
