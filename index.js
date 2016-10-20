@@ -16,8 +16,9 @@ class Index extends Events{
      * @param options  {object}   {api: {join: Func， seat: Func, ....}}
      */
     constructor(options) {
-        new Log({develop: true});       //create global log
+        super();
 
+        new Log({env: 'develop', singleton: true});       //create global log
         this._config = new Config();
 
         this._engine = new Engine();
@@ -32,9 +33,15 @@ class Index extends Events{
 
         });
 
-        this._game = new Game(this._config.get(['dbcluster', 'nodes']));
+        let opt = {
+            cluster: this._config.get('cluster'),
+            nodes: this._config.get('db.nodes')
+        };
+        this._game = new Game(opt);
         this._game.init(_.pick(options, 'tableId')).then(() => {
             this._engine.start(_.pick(options, 'port', 'ip'));      //port and ip to create socket server  default port:2323, ip:localhost
+        }).catch(e => {
+            console.error(e);
         });
     };
 
@@ -298,4 +305,6 @@ class Index extends Events{
     };
 }
 
-new Index();
+module.exports = Index;
+
+new Index({tableId: 67});

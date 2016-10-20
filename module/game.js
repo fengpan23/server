@@ -2,6 +2,7 @@
  * Created by fp on 2016/10/14.
  */
 const _ = require('underscore');
+const log = require('log')();
 
 const Table = require('../model/table');
 const Room = require('../model/room');
@@ -66,7 +67,7 @@ class G{
             this._table = res.table;
             this._seats = res._seats;
         }).catch(e => {
-            log.error(e);
+            log.error(e.stack);
         });
     }
 }

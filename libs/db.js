@@ -3,6 +3,7 @@
  */
 
 "use strict";
+const _ = require('underscore');
 const mysql = require('mysql');
 
 class DB {
@@ -70,7 +71,7 @@ class DB {
                     params.column = common.first(params.column).value;
                 params.offset = common.tonumber(params.offset);
                 let limit = common.empty(params.offset) ? 1 : {limit: 1, offset: params.offset};
-                me.query(params.connection, get_selectsql(params.table, params.column, params.condition, params.order,
+                me.query(params.connection, getSelectSql(params.table, params.column, params.condition, params.order,
                     limit, params.group, params.having)).then(function (result) {
                     resolve(common.first(result[0]).value);
                 }).catch(function (err) {
@@ -103,23 +104,11 @@ class DB {
         }
     }
 
-    one() {
-        let me = this;
-        let params = common.get_parameter(arguments, ['connection', 'table', 'column', 'condition', 'order', 'offset', 'group', 'having']);
-        if (common.empty(params.table)) {
-            return Promise.reject(new wrong('error', 'invalid_params', 'param invalid on db.one'));
-        } else {
-            return new Promise(function (resolve, reject) {
-                params.offset = common.tonumber(params.offset);
-                var limit = common.empty(params.offset) ? 1 : {limit: 1, offset: params.offset};
-                me.query(params.connection, get_selectsql(params.table, params.column,
-                    params.condition, params.order, limit, params.group, params.having)).then(function (result) {
-                    resolve(result[0]);
-                }).catch(function (err) {
-                    reject(err);
-                })
-            });
-        }
+    one(connection, table, column, condition, order, offset, group, having) {
+        var limit = offset ? {limit: 1, offset: +offset} : 1;
+        this.query(connection, getSelectSql(table, column, condition, order, limit, group, having)).then(result => {
+            return Promise.resolve(result[0]);
+        })
     }
 
     oneforupdate() {
@@ -131,7 +120,7 @@ class DB {
             return new Promise(function (resolve, reject) {
                 params.offset = common.tonumber(params.offset);
                 var limit = common.empty(params.offset) ? 1 : {limit: 1, offset: params.offset};
-                me.query(params.connection, get_selectsql(params.table, params.column,
+                me.query(params.connection, getSelectSql(params.table, params.column,
                         params.condition, params.order, limit, params.group, params.having) + ' for update').then(function (result) {
                     resolve(result[0]);
                 }).catch(function (err) {
@@ -150,7 +139,7 @@ class DB {
             return new Promise(function (resolve, reject) {
                 params.offset = common.tonumber(params.offset);
                 var limit = common.empty(params.offset) ? 1 : {limit: 1, offset: params.offset};
-                me.query(params.connection, get_selectsql(params.table, params.column, params.condition, params.order,
+                me.query(params.connection, getSelectSql(params.table, params.column, params.condition, params.order,
                     limit, params.group, params.having)).then(function (result) {
                     resolve(common.array_values(result[0]));
                 }).catch(function (err) {
@@ -167,7 +156,7 @@ class DB {
             return Promise.reject(new wrong('error', 'invalid_params', 'param invalid on db.select'));
         else
             return new Promise(function (resolve, reject) {
-                me.query(params.connection, get_selectsql(params.table, params.column, params.condition, params.order,
+                me.query(params.connection, getSelectSql(params.table, params.column, params.condition, params.order,
                     params.limit, params.group, params.having)).then(function (result) {
                     resolve(result);
                 }).catch(function (err) {
@@ -199,7 +188,7 @@ class DB {
     update() {
         let params = common.get_parameter(arguments, ['connection', 'table', 'data', 'condition', 'order', 'limit']);
         if (!common.empty(params.table) && !common.empty(params.condition))
-            return this.query(params.connection, get_updatesql(params.table, params.data, params.condition, params.order, params.limit));
+            return this.query(params.connection, getUpdateSql(params.table, params.data, params.condition, params.order, params.limit));
         else
             return Promise.reject(new wrong('error', 'invalid_params', 'param invalid on db.update'));
     }
@@ -470,23 +459,20 @@ const escape = function (value, auto, column) {
         return strdbcond;
     },
 
-    get_condition = function (dbcond, having) {
-        var sdbcond = '';
-        var regex_con = /(`?)([^\W]|[\w\d\-]+)(`?)(\s*)([\>=\<!]|LIKE|IS NOT NULL|IN|NOT IN|BETWEEN|NOT BETWEEN)(\s*)(('([^']*)')|[\d\.]|(\((.*)\))*)/ig;
-        if (!common.empty(dbcond)) {
-            //if (dbcond !== null && !common.isarray(dbcond) && typeof (dbcond) === 'object')
-            //    dbcond = [dbcond];
-            if (common.isarray(dbcond)) {
+    getCondition = function (cond, having) {
+        let sdbcond = '', regex_con = /(`?)([^\W]|[\w\d\-]+)(`?)(\s*)([\>=\<!]|LIKE|IS NOT NULL|IN|NOT IN|BETWEEN|NOT BETWEEN)(\s*)(('([^']*)')|[\d\.]|(\((.*)\))*)/ig;
+        if (cond) {
+            if (_.isArray(cond)) {
                 var regex_op = /^\{DB_(OR|XOR|LB|RB|AND)\}$/i,
                     logic = true,
                     braket = 0,
                     matches = [];
-                for (var i in dbcond) {
+                for (var i in cond) {
                     var key = '', value = '';
-                    if (typeof (dbcond[i]) === 'string')
-                        value = dbcond[i];
-                    else if (typeof (dbcond[i]) === 'object' && !common.empty(dbcond[i])) {
-                        var first = common.first(dbcond[i]);
+                    if (typeof (cond[i]) === 'string')
+                        value = cond[i];
+                    else if (typeof (cond[i]) === 'object' && cond[i]) {
+                        var first = _.first(cond[i]);
                         key = first.key;
                         value = first.value;
                     } else
@@ -522,7 +508,7 @@ const escape = function (value, auto, column) {
                                 break;
                         }
                     } else {
-                        if (!common.empty(key)) {
+                        if (key) {
                             sdbcond += (!logic ? " AND " : "") + get_cond(key, value, having);
                             logic = false;
                         }
@@ -538,23 +524,21 @@ const escape = function (value, auto, column) {
         return !common.empty(dbcond) ? (having ? " HAVING " : " WHERE ") + (common.isarray(dbcond) || typeof(dbcond) === 'string' ? sdbcond : "") : "";
     },
 
-    get_colsql = function (dbcol, alias) {
-        var sqlcol = "";
+    getColSql = function (col, alias) {
+        var sql = "";
         if (typeof (alias) === 'undefined')
             alias = true;
-        if (!common.empty(dbcol)) {
-            switch (typeof (dbcol)) {
+        if (col) {
+            switch (typeof (col)) {
                 case 'object':
-                    for (var colalies in dbcol)
-                        sqlcol += (sqlcol !== "" ? ", " : "") + get_colnm(dbcol[colalies], colalies,
-                                alias);
+                    for (var c in col)
+                        sql += (sql !== "" ? ", " : "") + get_colnm(col[c], c, alias);
                     break;
-
                 case 'string':
-                    sqlcol = get_colnm(dbcol, null, alias);
+                    sql = get_colnm(col, null, alias);
             }
         }
-        return sqlcol;
+        return sql;
     },
 
     get_group = function (group, having) {
@@ -667,7 +651,7 @@ const escape = function (value, auto, column) {
         return ' ' + sqllimit;
     },
 
-    get_tablesql = function (table) {
+    getTableSql = function (table) {
         if (typeof (table) === 'string' && table !== '') {
             //table = table.replace(/\./g, "`.`");
             //table = table.replace(/,/g, "`,`");
@@ -677,7 +661,7 @@ const escape = function (value, auto, column) {
     },
 
     get_deletesql = function (table, condition, order, limit) {
-        return "DELETE FROM " + get_tablesql(table) + get_condition(condition) + get_order(order) + get_limit(limit);
+        return "DELETE FROM " + getTableSql(table) + get_condition(condition) + get_order(order) + get_limit(limit);
     },
 
     get_insertsql = function (table, data) {
@@ -686,7 +670,7 @@ const escape = function (value, auto, column) {
             sqlfields += (sqlfields !== '' ? ", " : "") + get_colnm(name);
             sqldata += (sqldata !== '' ? ", " : "") + get_colval(data[name], name);
         }
-        return "INSERT INTO " + get_tablesql(table) + " (" + sqlfields + ") VALUES (" + sqldata + ")";
+        return "INSERT INTO " + getTableSql(table) + " (" + sqlfields + ") VALUES (" + sqldata + ")";
     },
 
     get_inserts_sql = function (table, fields, data) {
@@ -707,42 +691,42 @@ const escape = function (value, auto, column) {
             } else
                 return false;
         }
-        return "INSERT INTO " + get_tablesql(table) + " (" + sqlfields + ") VALUES " + sql_insertsvals;
+        return "INSERT INTO " + getTableSql(table) + " (" + sqlfields + ") VALUES " + sql_insertsvals;
     },
 
-    get_updatesql = function (table, data, condition, order, limit) {
+    getUpdateSql = function (table, data, condition, order, limit) {
         var sqlsetdata = '';
         for (var name in data)
             sqlsetdata += (sqlsetdata !== '' ? ", " : "") + get_colnm(name) + " = " + get_colval(data[name], name);
-        return "UPDATE " + get_tablesql(table) + " SET " + sqlsetdata + get_condition(condition) +
+        return "UPDATE " + getTableSql(table) + " SET " + sqlsetdata + get_condition(condition) +
             get_order(order) + get_limit(limit);
     },
 
-    get_copysql = function (srctable, dsttable, data, condition, order, limit, group, having) {
+    getCopySql = function (srctable, dsttable, data, condition, order, limit, group, having) {
         if (!common.empty(srctable) && !common.empty(dsttable) && !common.empty(data) && (typeof (data) === 'object' || data === '*')) {
             var colsrc = [], coldes = [];
             if (data === '*') {
-                return "INSERT INTO " + get_tablesql(dsttable) + " " + get_selectsql(srctable, "*", condition, order, limit, group, having);
+                return "INSERT INTO " + getTableSql(dsttable) + " " + getSelectSql(srctable, "*", condition, order, limit, group, having);
             } else {
                 for (var name in data) {
                     colsrc.push(name);
                     coldes.push(data[name]);
                 }
-                var sqlcolsrc = get_colsql(colsrc, false);
-                return "INSERT INTO " + get_tablesql(dsttable) + "(" + sqlcolsrc + ") " +
-                    get_selectsql(srctable, coldes, condition, order, limit, group, having);
+                var sqlcolsrc = getColSql(colsrc, false);
+                return "INSERT INTO " + getTableSql(dsttable) + "(" + sqlcolsrc + ") " +
+                    getSelectSql(srctable, coldes, condition, order, limit, group, having);
             }
         } else
             return false;
     },
 
-    get_selectsql = function (table, column, condition, order, limit, group, having) {
-        return "SELECT " + get_colsql(column) + " FROM " + get_tablesql(table) +
-            get_condition(condition) + get_group(group, having) +
-            get_order(order) + get_limit(limit);
+    getSelectSql = function (table, column, condition, order, limit, group, having) {
+        return "SELECT " + getColSql(column) + " FROM "
+            + getTableSql(table) + getCondition(condition)
+            + getGroup(group, having) + getOrder(order) + getLimit(limit);
     },
 
-    get_paging = function (perpage, total, now) {
+    getPaging = function (perpage, total, now) {
         perpage = parseInt(perpage, 10);
         total = parseInt(total, 10);
         now = parseInt(now, 10);

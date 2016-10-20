@@ -9,12 +9,12 @@ const TABLE = 'game_multiplayer_table';
 
 function _getCond(params) {
     let cond = [];
-    if (params.tableid)
-        cond.push({[TABLE + '_id']: params.tableid});
-    if (params.agentid)
-        cond.push({[TABLE + '_agentid']: params.agentid});
-    if (params.gameid)
-        cond.push({[TABLE + '_gameid']: params.gameid});
+    if (params.tableId)
+        cond.push({[TABLE + '_id']: params.tableId});
+    if (params.agentId)
+        cond.push({[TABLE + '_agentid']: params.agentId});
+    if (params.gameId)
+        cond.push({[TABLE + '_gameid']: params.gameId});
     return cond;
 }
 

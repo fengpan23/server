@@ -6,9 +6,9 @@ const _ = require('underscore');
 const fs = require('fs');
 const path = require('path');
 
-const log = require('log');
+const log = require('log')();
 
-const PATH = '../config';
+const PATH = './config';
 const ENV = 'env';
 const NODE_ENV = (process.env.NODE_ENV || 'local').toLowerCase();
 
@@ -22,10 +22,11 @@ class Config {
 
     load(dir, fileName) {
         let file = fs.readFileSync(path.join(dir, fileName), "utf8");
-
         try {
             file = JSON.parse(file);
-            this.setting.set(fileName.slice(0, -5), file);
+            for(let key in file){
+                this.setting.set(key, file[key]);
+            }
         } catch (err) {
             log.error(`Error load file:${fileName}, err:(${err})`);
         }
@@ -37,7 +38,7 @@ class Config {
     get(key) {
         let keys = key.split('.');
         let results = {};
-        for(let k in keys){
+        for(let k of keys){
             if (this.setting.has(k) ||  results.hasOwnProperty(k))
                 results = this.setting.get(k) || results[k];
             else

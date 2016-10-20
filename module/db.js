@@ -8,7 +8,6 @@ const db = require('../libs/db');
 class DB {
     constructor(options) {
         this._cluster = Mysql.createPoolCluster(options.cluster);
-
         for (var name in options.nodes)
             this._cluster.add(name, options.nodes[name]);
 
