@@ -8,7 +8,7 @@ const TABLE = "game_multiplayer_room";
 
 function getCond(params) {
     let cond = [];
-    if (params.roomid) cond.push({game_multiplayer_room_id: params.roomid});
+    if (params.roomid) cond.push({[TABLE + '_id']: params.roomId});
     return cond;
 }
 

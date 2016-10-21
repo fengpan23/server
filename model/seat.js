@@ -4,17 +4,18 @@
 "use strict";
 const _ = require('underscore');
 const db = require('../libs/db');
+const Util = require('../libs/util');
 
 const TABLE = 'game_multiplayer_seat';
 
 function getCond(params) {
     let cond = [];
     if (params.state) cond.push({[TABLE + '_state']: params.state});
-    if (params.gameid) cond.push({[TABLE + '_gameid']: params.gameid});
-    if (params.kioskid) cond.push({[TABLE + '_kioskid']: params.kioskid});
-    if (params.agentid) cond.push({[TABLE + '_agentid']: params.agentid});
-    if (params.tableid) cond.push({[TABLE + '_tableid']: params.tableid});
-    if (params.seatindex) cond.push({[TABLE + '_index']: params.seatindex});
+    if (params.gameId) cond.push({[TABLE + '_gameid']: params.gameId});
+    if (params.kioskId) cond.push({[TABLE + '_kioskid']: params.kioskId});
+    if (params.agentId) cond.push({[TABLE + '_agentid']: params.agentId});
+    if (params.tableId) cond.push({[TABLE + '_tableid']: params.tableId});
+    if (params.seatIndex) cond.push({[TABLE + '_index']: params.seatIndex});
     return cond;
 }
 
@@ -32,11 +33,7 @@ class Seat {
         return db.select(dbc, TABLE, '*', getCond(params), order).then(seats => {
             let results = [];
             seats.forEach(seat => {
-                let s = {};
-                for(let key in seat){
-                    s[key.split('_').pop()] = seat[key];
-                }
-                results.push(s);
+                results.push(Util.format(TABLE, seat));
             });
             return Promise.resolve(results);
         });

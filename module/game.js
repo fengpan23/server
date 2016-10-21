@@ -6,7 +6,6 @@ const log = require('log')();
 
 const Table = require('../model/table');
 const Room = require('../model/room');
-const Seat = require('../model/seat');
 const Game = require('../model/game');
 const Agency = require('../model/agency');
 const AgencyGame = require('../model/agency_game');
@@ -15,11 +14,14 @@ const SettingGroup = require('../model/setting_group');
 const Setting = require('../model/setting');
 
 const DB = require('./db');
+const Seats = require('./seats');
 
 class G{
     constructor(options){
         this._table = {};
-        this._seats = {};
+        this._seats = new Seats();
+        this._profile = {};
+
         this._db = new DB(_.pick(options, 'cluster', 'nodes'));
     }
 
@@ -27,18 +29,38 @@ class G{
         return this._db.begin().then(dbc =>
             Table.get(dbc, {tableId: opt.tableId})
                 .then(table => {
-                    return Room.get(dbc, {roomId: table.roomid});
+                    if (_.isEmpty(table)) return Promise.reject('table not exits on game.init');
+
+                    this._table = table;
+                    if (!opt.reload && (table.curkiosk > 0 || table.status === 2)) {
+                        table.curkiosk = 0;
+                        table.status = 1;
+                        return Table.update(dbc, {tableId: table.id}, {curkiosk: 0, status: 1});
+                    }
+                    return Promise.resolve();
                 })
-                .then(room => {
-                    return Seat.find(dbc, {tableId: opt.tableId});
+                .then(() => {
+                    if(this._table.roomid) {
+                        Room.get(dbc, {roomId: this._table.roomid}).then(room => {
+                            _.extend(this._table, room);
+                        });
+                    }
+
+                    return this._seats.init(dbc, this._table.id);
                 })
                 .then(seats => {
                     return Game.get(dbc, this._table.gameid);
                 })
-                .then(() => {
+                .then(game => {
+                    console.log('game');
+                    console.log(game);
+
                     return Agency.get(dbc, {agencyId: this._table.topagentid});
                 })
-                .then(() => {
+                .then(agency => {
+                    console.log('agency');
+                    console.log(agency);
+
                     return AgencyGame.find(dbc, this._table.gameid, gameprofile.pool_agentid, 1);
                 })
                 .then(() => {
@@ -51,22 +73,24 @@ class G{
                     return  AgencyPool.get(dbc, dbc, this._table.gameid, this.agentid);
                 })
                 .catch(e => {
-                    log.error(e);
-                    this._db.rollback(dbc).then(() => {
-                        db.destroy(dbc);
-                        me._resume();
-                        reject(err);
-                        if (!reload) process.exit(500);
-                    }).catch(err=> {
-                        me._resume();
-                        reject(err);
-                        if (!reload) process.exit(500);
-                    });
+                    // dbc.rollback(dbc).then(() => {
+                    //     db.destroy(dbc);
+                    //     me._resume();
+                    //     reject(err);
+                    //     if (!reload) process.exit(500);
+                    // }).catch(err=> {
+                    //     me._resume();
+                    //     reject(err);
+                    //     if (!reload) process.exit(500);
+                    // });
+                    return Promise.reject(e);
                 })
         ).then(res => {
-            this._table = res.table;
-            this._seats = res._seats;
+            console.log(res);
+            // this._table = res.table;
+            // this._seats = res._seats;
         }).catch(e => {
+            log.error('eeee');
             log.error(e.stack);
         });
     }

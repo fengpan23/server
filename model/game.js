@@ -3,6 +3,7 @@
  */
 "use strict";
 const db = require('../libs/db');
+const Util = require('../libs/util');
 
 const TABLE = 'game';
 
@@ -16,13 +17,7 @@ class Game {
      * @param id
      */
     get(dbc, id) {
-        return db.one(dbc, TABLE, '*', [{game_id: id}]).then(game => {
-            let result = {};
-            for (let key in game){
-                result[key.slice(5)] = game[key];
-            }
-            return Promise.resolve(result);
-        });
+        return db.one(dbc, TABLE, '*', [{game_id: id}]).then(game => Promise.resolve(Util.format(TABLE, game)));
     }
 
     update(dbc, id, data) {

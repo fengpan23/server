@@ -1,10 +1,10 @@
 /**
  * Created by fp on 2016/10/13.
  */
-
 "use strict";
 const _ = require('underscore');
 const mysql = require('mysql');
+const common = require('common');
 
 class DB {
     constructor() {
@@ -13,18 +13,26 @@ class DB {
     query(dbc, sql) {
         let _query = function (dbc, sql) {
             return new Promise((resolve, reject) => {
-                let select = sql.toUpperCase().startsWith('SELECT')
-
-                dbc.query(sql, (err, result) => {
-                    err ? reject(err) : resolve(result);
-                });
+                let times = 0, isSelect = sql.toUpperCase().startsWith('SELECT');
+                function q(){
+                    dbc.query(sql, (err, result) => {
+                        if(err){
+                            reject(err)
+                        } else {
+                            if (!result && isSelect && times++ < 3){
+                                _timeout(100).then(q);
+                            }else{
+                                resolve(result);
+                            }
+                        }
+                    });
+                }
+                q();
             });
         };
         let _timeout = function (ms) {
-            return new Promise(function (_res, _rej) {
-                setTimeout(function () {
-                    _res();
-                }, ms)
+            return new Promise(_res => {
+                setTimeout(_res, ms);
             });
         };
 
@@ -60,24 +68,21 @@ class DB {
         })
     }
 
-    cell() {
-        let me = this;
-        let params = common.get_parameter(arguments, ['connection', 'table', 'column', 'condition', 'order', 'offset', 'group', 'having']);
-        if (common.empty(params.table))
-            return Promise.reject(new wrong('error', 'invalid_params', 'param invalid on db.cell'));
-        else
-            return new Promise(function (resolve, reject) {
-                if (typeof (params.column) === 'object')
-                    params.column = common.first(params.column).value;
-                params.offset = common.tonumber(params.offset);
-                let limit = common.empty(params.offset) ? 1 : {limit: 1, offset: params.offset};
-                me.query(params.connection, getSelectSql(params.table, params.column, params.condition, params.order,
-                    limit, params.group, params.having)).then(function (result) {
-                    resolve(common.first(result[0]).value);
-                }).catch(function (err) {
-                    reject(err);
-                });
+    cell(connection, table, column, condition, order, offset, group, having) {
+        if (table)
+            return new Promise((resolve, reject) => {
+                if (typeof column === 'object'){
+                    column = common.first(column);
+                    column = column && common.first(column).value;
+                }
+                let limit = offset ? {limit: 1, offset: +offset} : 1;
+                this.query(connection, getSelectSql(table, column, condition, order, limit, group, having)).then(result => {
+                    let res = common.first(result[0]);
+                    resolve(res && res.value);
+                }).catch(reject);
             });
+        else
+            return Promise.reject('param invalid on db.cell');
     }
 
     sum() {
@@ -105,107 +110,76 @@ class DB {
     }
 
     one(connection, table, column, condition, order, offset, group, having) {
-        var limit = offset ? {limit: 1, offset: +offset} : 1;
-        this.query(connection, getSelectSql(table, column, condition, order, limit, group, having)).then(result => {
+        console.log('condition: ', condition);
+        let limit = offset ? {limit: 1, offset: +offset} : 1;
+        return this.query(connection, getSelectSql(table, column, condition, order, limit, group, having)).then(result => {
             return Promise.resolve(result[0]);
         })
     }
 
-    oneforupdate() {
-        let me = this;
-        let params = common.get_parameter(arguments, ['connection', 'table', 'column', 'condition', 'order', 'offset', 'group', 'having']);
-        if (common.empty(params.table)) {
-            return Promise.reject(new wrong('error', 'invalid_params', 'param invalid on db.one'));
-        } else {
-            return new Promise(function (resolve, reject) {
-                params.offset = common.tonumber(params.offset);
-                var limit = common.empty(params.offset) ? 1 : {limit: 1, offset: params.offset};
-                me.query(params.connection, getSelectSql(params.table, params.column,
-                        params.condition, params.order, limit, params.group, params.having) + ' for update').then(function (result) {
+    oneForUpdate(connection, table, column, condition, order, offset, group, having) {
+        if (table) {
+            return new Promise((resolve, reject) => {
+                let limit = offset ? 1 : {limit: 1, offset: +offset};
+                this.query(connection, getSelectSql(table, column, condition, order, limit, group, having) + ' for update').then(result => {
                     resolve(result[0]);
-                }).catch(function (err) {
-                    reject(err);
-                })
+                }).catch(reject);
             });
-        }
+        }else
+            return Promise.reject('param invalid on db.oneForUpdate');
     }
 
-    onerow() {
-        let me = this;
-        let params = common.get_parameter(arguments, ['connection', 'table', 'column', 'condition', 'order', 'offset', 'group', 'having']);
-        if (common.empty(params.table)) {
-            return Promise.reject(new wrong('error', 'invalid_params', 'param invalid on db.onerow'));
-        } else {
-            return new Promise(function (resolve, reject) {
-                params.offset = common.tonumber(params.offset);
-                var limit = common.empty(params.offset) ? 1 : {limit: 1, offset: params.offset};
-                me.query(params.connection, getSelectSql(params.table, params.column, params.condition, params.order,
-                    limit, params.group, params.having)).then(function (result) {
-                    resolve(common.array_values(result[0]));
-                }).catch(function (err) {
-                    reject(err)
-                });
-            });
-        }
+    oneRow(connection, table, column, condition, order, offset, group, having) {
+        if (table) {
+            let limit = offset ? {limit: 1, offset: +offset} : 1;
+            return this.query(connection, getSelectSql(table, column, condition, order, limit, group, having));
+        }else
+            return Promise.reject('param invalid on db.oneRow');
     }
 
-    select() {
-        let me = this;
-        let params = common.get_parameter(arguments, ['connection', 'table', 'column', 'condition', 'order', 'limit', 'group', 'having']);
-        if (common.empty(params.table))
-            return Promise.reject(new wrong('error', 'invalid_params', 'param invalid on db.select'));
+    select(connection, table, column, condition, order, limit, group, having) {
+        if (table)
+            return this.query(connection, getSelectSql(table, column, condition, order, limit, group, having));
         else
-            return new Promise(function (resolve, reject) {
-                me.query(params.connection, getSelectSql(params.table, params.column, params.condition, params.order,
-                    params.limit, params.group, params.having)).then(function (result) {
-                    resolve(result);
-                }).catch(function (err) {
-                    reject(err);
-                });
-            });
+            return Promise.reject('param invalid on db.select');
     }
 
-    insert() {
-        let params = common.get_parameter(arguments, ['connection', 'table', 'data']);
-        if (!common.empty(params.table))
-            return this.query(params.connection, get_insertsql(params.table, params.data));
+    insert(connection, table, data) {
+        if (table)
+            return this.query(connection, getInsertSql(table, data));
         else
-            return Promise.reject(new wrong('error', 'invalid_params', 'param invalid on db.insert'));
+            return Promise.reject('param invalid on db.insert');
     }
 
-    inserts() {
-        let params = common.get_parameter(arguments, ['connection', 'table', 'fields', 'data']);
-        if (!common.empty(params.table) && !common.empty(params.fields) && !common.empty(params.data) && common.isarray(params.fields) && common.isarray(params.data)) {
-            var sql_inserts = get_inserts_sql(params.table, params.fields, params.data);
-            if (sql_inserts !== false)
-                return this.query(params.connection, get_inserts_sql(params.table, params.fields, params.data));
+    inserts(connection, table, fields, data) {
+        if (table && fields && _.isArray(fields) && _.isArray(data)) {
+            let sql = getInsertsSql(table, fields, data);
+            if (sql)
+                return this.query(connection, sql);
             else
-                return Promise.reject(new wrong('error', 'invalid_params', 'param invalid on db.inserts'));
+                return Promise.reject('param invalid get sql on db.inserts');
         } else
-            return Promise.reject(new wrong('error', 'invalid_params', 'param invalid on db.inserts'));
+            return Promise.reject('param invalid on db.inserts');
     }
 
-    update() {
-        let params = common.get_parameter(arguments, ['connection', 'table', 'data', 'condition', 'order', 'limit']);
-        if (!common.empty(params.table) && !common.empty(params.condition))
-            return this.query(params.connection, getUpdateSql(params.table, params.data, params.condition, params.order, params.limit));
+    update(connection, table, data, condition, order, limit) {
+        if (table && condition)
+            return this.query(connection, getUpdateSql(table, data, condition, order, limit));
         else
-            return Promise.reject(new wrong('error', 'invalid_params', 'param invalid on db.update'));
+            return Promise.reject( 'param invalid on db.update');
     }
 
-    delete() {
-        let params = common.get_parameter(arguments, ['connection', 'table', 'condition', 'order', 'limit']);
-        if (!common.empty(params.table) && !common.empty(params.condition))
-            return this.query(params.connection, get_deletesql(params.table, params.condition, params.order, params.limit));
+    delete(connection, table, condition, order, limit) {
+        if (table && condition)
+            return this.query(connection, getDeleteSql(table, condition, order, limit));
         else
-            return Promise.reject(new wrong('error', 'invalid_params', 'param invalid on db.delete'));
+            return Promise.reject('param invalid on db.delete');
     }
 
     rollback(dbc) {
-        let me = this;
-        return new Promise(function (resolve, reject) {
+        return new Promise(resolve => {
             if (typeof (dbc) === 'object' && dbc !== null && typeof (dbc.rollback) === 'function')
-                dbc.rollback(function () {
+                dbc.rollback(() => {
                     resolve(true);
                 });
             else
@@ -214,45 +188,31 @@ class DB {
     }
 
     commit(dbc) {
-        let me = this;
-        return new Promise(function (resolve, reject) {
-            if (typeof (dbc) === 'object' && dbc !== null && typeof (dbc.commit) === 'function')
-                dbc.commit(function (err) {
-                    if (err) {
-                        me.rollback(dbc).then(function () {
-                            reject(err);
-                        });
-                    } else
-                        resolve(true);
+        return new Promise((resolve, reject) => {
+            if (typeof (dbc) === 'object' && dbc !== null && typeof (dbc.commit) === 'function'){
+                dbc.commit(err => {
+                    err ? this.rollback(dbc).then(() => reject(err)) :　resolve(true);
                 });
-            else
+            }else{
                 resolve(false);
+            }
         });
     }
 
     destroy(dbc) {
         if (dbc !== null)
-            dbc = close_connection(dbc);
+            closeConnection(dbc);
     }
 }
 
+    function escape(value, auto, column) {
+        if (typeof(value) !== 'string') value = value.toString();
+        let strEscape = column === true ? mysql.escapeId(value) : mysql.escape(value);
+        return auto === true ? strEscape : strEscape.substring(1, strEscape.length - 1);
+    }
 
-const escape = function (value, auto, column) {
-        if (typeof(value) !== 'string') value = common.tostring(value);
-        var strescape = column === true ? mysql.escapeId(value) : mysql.escape(value);
-        return auto === true ? strescape : strescape.substring(1, strescape.length - 1);
-    },
-
-    get_microtime = function () {
-        return new Date().getTime();
-    },
-
-    get_elapsedms = function (start) {
-        return (get_microtime() - parseFloat(start)) + ' ms';
-    },
-
-    get_colnm = function (dbcolnm, dbcola, alias, dbfnc) {
-        var dbcolnow = '',
+    function getColnm(dbcolnm, dbcola, alias, dbfnc) {
+        let dbcolnow = '',
             regex_db = /^\{DB_([A-Z_]+)\}/i,
             regex_col = /^'(.+)'$/, matches = [],
             regex_iscol = /^`(.)^$/ig;
@@ -265,44 +225,44 @@ const escape = function (value, auto, column) {
             if (matches = regex_db.exec(dbcolnm)) {
                 switch (matches[1].toUpperCase()) {
                     case 'DISTINCT':
-                        dbcolnow = "DISTINCT " + get_colnm(dbcolnm.replace(matches[0], ""), null, false, false);
+                        dbcolnow = "DISTINCT " + getColnm(dbcolnm.replace(matches[0], ""), null, false, false);
                         break;
 
                     case 'NO_CACHE':
-                        dbcolnow = "SQL_NO_CACHE " + get_colnm(dbcolnm.replace(matches[0], ""), null, false, false);
+                        dbcolnow = "SQL_NO_CACHE " + getColnm(dbcolnm.replace(matches[0], ""), null, false, false);
                         break;
 
                     case 'HIGH_PRIORITY':
-                        dbcolnow = "HIGH_PRIORITY " + get_colnm(dbcolnm.replace(matches[0], ""), null, false, false);
+                        dbcolnow = "HIGH_PRIORITY " + getColnm(dbcolnm.replace(matches[0], ""), null, false, false);
                         break;
 
                     case 'LOW_PRIORITY':
-                        dbcolnow = "LOW_PRIORITY " + get_colnm(dbcolnm.replace(matches[0], ""), null, false, false);
+                        dbcolnow = "LOW_PRIORITY " + getColnm(dbcolnm.replace(matches[0], ""), null, false, false);
                         break;
 
                     case 'FNC':
-                        dbcolnow = get_colnm(dbcolnm.replace(matches[0], ""), null, false, true);
+                        dbcolnow = getColnm(dbcolnm.replace(matches[0], ""), null, false, true);
                         break;
 
                     case 'VAL':
-                        dbcolnow = get_colval(dbcolnm.replace(matches[0], ""), dbcolnm);
+                        dbcolnow = getColVal(dbcolnm.replace(matches[0], ""), dbcolnm);
                         break;
 
                     case "SUM":
-                        dbcolnow = "SUM(" + get_colnm(dbcolnm.replace(matches[0], ""), null, false, false) + ")";
+                        dbcolnow = "SUM(" + getColnm(dbcolnm.replace(matches[0], ""), null, false, false) + ")";
                         break;
 
                     case "COUNT":
                         dbcolnm = dbcolnm.replace(matches[0], "");
-                        dbcolnow = dbcolnm === "*" || dbcolnm === "" ? "COUNT(*)" : "COUNT(" + get_colnm(dbcolnm, null, false, false) + ")";
+                        dbcolnow = dbcolnm === "*" || dbcolnm === "" ? "COUNT(*)" : "COUNT(" + getColnm(dbcolnm, null, false, false) + ")";
                         break;
 
                     case "NOW":
                         dbcolnow = "NOW()";
                         break;
 
-                    case common.inarray(matches[1], common.range('A', 'Z')):
-                        dbcolnow = get_colnm(dbcolnm.replace(matches[0], ""), null, false, true);
+                    case common.range('A', 'Z').indexOf(matches[1]) > -1:
+                        dbcolnow = getColnm(dbcolnm.replace(matches[0], ""), null, false, true);
                         break;
                 }
             } else if (dbfnc !== true && !regex_iscol.test(dbcolnm) && dbcolnm !== '*')
@@ -313,106 +273,91 @@ const escape = function (value, auto, column) {
                 dbcolnow += (typeof (dbcola) === 'string' && !common.isnumeric(dbcola) ? " AS " + escape(dbcola, true) : "");
         }
         return dbcolnow;
-    },
+    }
 
-    get_colval = function (dbcolval, dbcolnm) {
+    function getColVal(dbcolval, dbcolnm) {
         if (dbcolval === null)
             return "NULL";
         else {
-            if (typeof (dbcolval) === 'object' || common.isobj(dbcolval))
+            if (typeof (dbcolval) === 'object' || _.isObject(dbcolval))
                 dbcolval = JSON.stringify(dbcolval);
-            var regex_db = /^\{DB_([A-Z_]+)\}/i, matches = regex_db.exec(dbcolval);
-            if (!common.empty(matches)) {
+            let regex_db = /^\{DB_([A-Z_]+)\}/i, matches = regex_db.exec(dbcolval);
+            if (matches) {
                 dbcolval = escape(dbcolval.replace(matches[0], ""));
                 switch (matches[1].toUpperCase()) {
                     case 'COL':
-                        return get_colnm(dbcolval);
-
+                        return getColnm(dbcolval);
                     case 'FNC':
                         return dbcolval;
-
                     case "NOW":
                         return "NOW()";
-
                     case "SUM":
                     case "COUNT":
-                        return get_colnm(dbcolval);
-
+                        return getColnm(dbcolval);
                     case "TIME":
                         return "CURRENT_TIME()";
-
                     case "DATE":
                         return "CURRENT_DATE()";
-
                     case "INC":
                         dbcolval = parseFloat(dbcolval);
-                        return get_colnm(dbcolnm) + " + " + dbcolval;
-
+                        return getColnm(dbcolnm) + " + " + dbcolval;
                     case "DEC":
                         dbcolval = parseFloat(dbcolval);
-                        return get_colnm(dbcolnm) + " - " + dbcolval;
-
+                        return getColnm(dbcolnm) + " - " + dbcolval;
                     case "TIMES":
                         dbcolval = parseFloat(dbcolval);
-                        return get_colnm(dbcolnm) + " * " + dbcolval;
-
+                        return getColnm(dbcolnm) + " * " + dbcolval;
                     case "DIV":
                         dbcolval = parseFloat(dbcolval);
-                        return get_colnm(dbcolnm) + " / " + dbcolval;
-
+                        return getColnm(dbcolnm) + " / " + dbcolval;
                     case "POWER":
                         dbcolval = parseFloat(dbcolval);
-                        return get_colnm(dbcolnm) + " ^ " + dbcolval;
+                        return getColnm(dbcolnm) + " ^ " + dbcolval;
                 }
             } else
                 return escape(dbcolval, true);
         }
-    },
+    }
 
-    get_cond = function (dname, dvalue, having) {
-        var strdbcond = '';
-        switch (typeof (dvalue)) {
+    function getCond(dname, dvalue, having) {
+        let str = '';
+        switch (typeof dvalue) {
             case 'object':
-                var first = common.first(dvalue),
+                let first = common.first(dvalue),
                     value = first.value,
                     key = first.key,
                     result = [];
-                strdbcond = get_colnm(dname, null, null, having);
+                str = getColnm(dname, null, null, having);
                 switch (key.toUpperCase()) {
                     case "LIST":
                     case "IN":
                         if (typeof (value) === 'object' && !common.empty(value))
-                            for (var vkey in value)
+                            for (let vkey in value)
                                 result.push(escape(value[vkey]));
-                        strdbcond += " IN ('" + common.implode("','", result) + "')";
+                        str += " IN ('" + common.implode("','", result) + "')";
                         break;
-
                     case "XLIST":
                     case "XIN":
                         if (typeof (value) === 'object' && !common.empty(value))
-                            for (var vkey in value)
+                            for (let vkey in value)
                                 result.push(escape(value[vkey]));
-                        strdbcond += " NOT IN ('" + common.implode("','", result) + "')";
+                        str += " NOT IN ('" + common.implode("','", result) + "')";
                         break;
-
                     case "BETWEEN":
                         value = common.array_values(value);
-                        strdbcond += " BETWEEN " + escape(value[0], true) + " AND " + escape(value[1], true);
+                        str += " BETWEEN " + escape(value[0], true) + " AND " + escape(value[1], true);
                         break;
-
                     case "XBETWEEN":
                         value = common.array_values($Value);
-                        strdbcond += " NOT BETWEEN " + escape(value[0], true) + " AND " + escape(value[1], true);
+                        str += " NOT BETWEEN " + escape(value[0], true) + " AND " + escape(value[1], true);
                         break;
-
                     default:
-                        strdbcond = "";
+                        str = "";
                 }
                 break;
-
             case 'number':
             case "string":
-                var regex_db = /^\{DB_([A-Z]+)\}/, operator = " = ", matches = [];
+                let regex_db = /^\{DB_([A-Z]+)\}/, operator = " = ", matches = [];
                 if (matches = regex_db.exec(dvalue)) {
                     switch (matches[1].toUpperCase()) {
                         case "NE":
@@ -449,116 +394,112 @@ const escape = function (value, auto, column) {
                     if (operator !== " = ")
                         dvalue = dvalue.replace(matches[0], "");
                 }
-                strdbcond = get_colnm(dname, null, null, having) + operator;
-                strdbcond += operator.substr(operator.length - 1) === " " ? get_colval(dvalue, dname) : "";
+                str = getColnm(dname, null, null, having) + operator;
+                str += operator.substr(operator.length - 1) === " " ? getColVal(dvalue, dname) : "";
                 break;
-
             case 'NULL':
-                strdbcond = get_colnm(dname) + " = null";
+                str = getColnm(dname) + " = null";
         }
-        return strdbcond;
-    },
+        return str;
+    }
 
-    getCondition = function (cond, having) {
-        let sdbcond = '', regex_con = /(`?)([^\W]|[\w\d\-]+)(`?)(\s*)([\>=\<!]|LIKE|IS NOT NULL|IN|NOT IN|BETWEEN|NOT BETWEEN)(\s*)(('([^']*)')|[\d\.]|(\((.*)\))*)/ig;
+    function getCondition(cond, having) {
+        let sdb = '';
+        let regex_con = /(`?)([^\W]|[\w\d\-]+)(`?)(\s*)([\>=\<!]|LIKE|IS NOT NULL|IN|NOT IN|BETWEEN|NOT BETWEEN)(\s*)(('([^']*)')|[\d\.]|(\((.*)\))*)/ig;
         if (cond) {
             if (_.isArray(cond)) {
-                var regex_op = /^\{DB_(OR|XOR|LB|RB|AND)\}$/i,
-                    logic = true,
-                    braket = 0,
-                    matches = [];
-                for (var i in cond) {
-                    var key = '', value = '';
+                let regex_op = /^\{DB_(OR|XOR|LB|RB|AND)\}$/i, logic = true, braket = 0, matches;
+                for (let i in cond) {
+                    let key = '', value = '';
                     if (typeof (cond[i]) === 'string')
                         value = cond[i];
-                    else if (typeof (cond[i]) === 'object' && cond[i]) {
-                        var first = _.first(cond[i]);
+                    else if (typeof (cond[i]) === 'object' && !_.isEmpty(cond[i])) {
+                        let first = common.first(cond[i]);
                         key = first.key;
                         value = first.value;
                     } else
                         break;
                     matches = regex_op.exec(value);
-                    if (typeof (value) === 'string' && !common.empty(matches)) {
+                    if (typeof (value) === 'string' && matches) {
                         switch (matches[1].toUpperCase()) {
                             case "OR":
-                                sdbcond += " OR ";
+                                sdb += " OR ";
                                 logic = true;
                                 break;
 
                             case "XOR":
-                                sdbcond += " XOR ";
+                                sdb += " XOR ";
                                 logic = true;
                                 break;
 
                             case "LB":
-                                sdbcond += (!logic ? " AND " : "") + "(";
+                                sdb += (!logic ? " AND " : "") + "(";
                                 braket++;
                                 break;
 
                             case "RB":
                                 if (braket > 0) {
                                     braket--;
-                                    sdbcond += ")";
+                                    sdb += ")";
                                 }
                                 break;
 
                             default:
-                                sdbcond += " AND ";
+                                sdb += " AND ";
                                 logic = true;
                                 break;
                         }
                     } else {
                         if (key) {
-                            sdbcond += (!logic ? " AND " : "") + get_cond(key, value, having);
+                            sdb += (!logic ? " AND " : "") + getCond(key, value, having);
                             logic = false;
                         }
                     }
                 }
-                sdbcond = sdbcond.replace(/(\s+)(AND|OR|XOR|\()(\s+)$/i, "");
+                sdb = sdb.replace(/(\s+)(AND|OR|XOR|\()(\s+)$/i, "");
                 if (braket > 0)
-                    for (var i = braket; i > 0; i--)
-                        sdbcond += ")";
-            } else if (typeof (dbcond) === 'string' && regex_con.test(dbcond))
-                sdbcond = dbcond;
+                    for (let i = braket; i > 0; i--)
+                        sdb += ")";
+            } else if (typeof (cond) === 'string' && regex_con.test(cond))
+                sdb = cond;
         }
-        return !common.empty(dbcond) ? (having ? " HAVING " : " WHERE ") + (common.isarray(dbcond) || typeof(dbcond) === 'string' ? sdbcond : "") : "";
-    },
+        return cond ? (having ? " HAVING " : " WHERE ") + (_.isArray(cond) || typeof(cond) === 'string' ? sdb : "") : "";
+    }
 
-    getColSql = function (col, alias) {
-        var sql = "";
-        if (typeof (alias) === 'undefined')
+    function getColSql(dbCol, alias) {
+        let sql = "";
+        if (typeof alias === 'undefined')
             alias = true;
-        if (col) {
-            switch (typeof (col)) {
+        if (dbCol) {
+            switch (typeof (dbCol)) {
                 case 'object':
-                    for (var c in col)
-                        sql += (sql !== "" ? ", " : "") + get_colnm(col[c], c, alias);
+                    for (let c in dbCol)
+                        sql += (sql !== "" ? ", " : "") + getColnm(dbCol[c], c, alias);
                     break;
                 case 'string':
-                    sql = get_colnm(col, null, alias);
+                    sql = getColnm(dbCol, null, alias);
             }
         }
         return sql;
-    },
+    }
 
-    get_group = function (group, having) {
-        var sqlgroup = get_order(group, true);
-        return !common.empty(sqlgroup) ? sqlgroup + get_having(having) : "";
-    },
+    function getGroup(group, having) {
+        let sql = getOrder(group, true);
+        return _.isEmpty(sql) ? "" : sql + getHaving(having);
+    }
 
-    get_having = function (having) {
-        return !common.empty(having) ? get_condition(having, true) : "";
-    },
+    function getHaving(having) {
+        return _.isEmpty(having) ? getCondition(having, true) : "";
+    }
 
-    get_order = function (order, group) {
-        var sqlorder = '';
-        if (!common.empty(order)) {
+    function getOrder(order, group) {
+        let sql = '', random = false;
+        if (order) {
             if (order !== null && !common.isarray(order) && typeof (order) === 'object')
                 order = [order];
-            if (common.isarray(order)) {
-                var random = false;
-                for (var i in order) {
-                    var oname = '', otype = '';
+            if (_.isArray(order)) {
+                for (let i in order) {
+                    let oname = '', otype = '';
                     if (typeof (order[i]) === 'string') {
                         oname = order[i];
                         if (oname === "RAND()") {
@@ -567,7 +508,7 @@ const escape = function (value, auto, column) {
                         } else
                             otype = "ASC";
                     } else if (typeof (order[i]) === 'object' && !common.empty(order[i])) {
-                        var first = common.first(order[i]);
+                        let first = common.first(order[i]);
                         oname = first.key;
                         otype = first.value.toUpperCase();
                         if (otype === '{DB_RAND}')
@@ -579,8 +520,8 @@ const escape = function (value, auto, column) {
                     } else
                         break;
                     if (oname !== "")
-                        oname = get_colnm(oname);
-                    sqlorder += (sqlorder !== '' ? ", " : "") + (oname !== '' ? oname + ' ' : '') + otype;
+                        oname = getColnm(oname);
+                    sql += (sql !== '' ? ", " : "") + (oname !== '' ? oname + ' ' : '') + otype;
                     if (otype === "RAND()") {
                         random = true;
                         break;
@@ -589,41 +530,40 @@ const escape = function (value, auto, column) {
             } else if (typeof (order) === 'string') {
                 if (order.toUpperCase() === "{DB_RAND}" || order.toUpperCase() === "RAND()") {
                     random = true;
-                    sqlorder = "RAND()";
+                    sql = "RAND()";
                 } else
-                    sqlorder = get_colnm(order) + " ASC";
+                    sql = getColnm(order) + " ASC";
             }
-            if (group === true && random === true && sqlorder !== '')
-                sqlorder = sqlorder.substring(0, sqlorder.length - 8);
+            if (group === true && random === true && sql !== '')
+                sql = sql.substring(0, sql.length - 8);
         }
-        return sqlorder !== '' ? (group === true ? " GROUP BY " : " ORDER BY ") + sqlorder : "";
-    },
+        return sql !== '' ? (group === true ? " GROUP BY " : " ORDER BY ") + sql : "";
+    }
 
-    get_limit = function (limit) {
-        var sqllimit = '';
-        if (!common.empty(limit)) {
-            var offset = 0, limited = 0;
-            switch (typeof (limit)) {
+    function getLimit(limit) {
+        let sql = '';
+        if (limit) {
+            let offset = 0, limited = 0;
+            switch (typeof limit) {
                 case "object":
-                    if (limit !== null && !common.isarray(limit) && typeof (limit) === 'object')
+                    if (limit !== null && !_.isArray(limit)){
                         limit = [limit];
-                    if (common.isarray(limit)) {
+                    }else if (_.isArray(limit)) {
+                        console.error('comm.....');
                         limit = common.array_values(limit);
-                        var item = 0;
-                        limitobj:
+                        let item = 0;
+                        limitAnchor:
                             if (limit.length > 1) {
-                                for (var i in limit) {
+                                for (let i in limit) {
                                     switch (item) {
                                         case 0:
                                             offset = parseFloat(limit[i]);
                                             break;
-
                                         case 1:
                                             limited = parseFloat(limit[i]);
                                             break;
-
                                         default:
-                                            break limitobj;
+                                            break limitAnchor;
                                     }
                                     item++;
                                 }
@@ -631,123 +571,113 @@ const escape = function (value, auto, column) {
                                 limited = parseFloat(limit[0]);
                     } else {
                         if (limit.hasOwnProperty("offset") || limit.hasOwnProperty("OFFSET"))
-                            offset = limit.offset || limit.OFFSET;
+                            offset = limit.offset || limit['OFFSET'];
                         if (limit.hasOwnProperty("limit") || limit.hasOwnProperty("LIMIT"))
-                            limited = limit.limit || limit.LIMIT;
+                            limited = limit.limit || limit['LIMIT'];
                     }
                     break;
-
                 case "string":
                 case "number":
                 case "boolean":
                     limited = parseInt(limit, 10);
                     break;
             }
+            if (limited > 0)
+                sql += (sql === '' ? '' : ' ') + "LIMIT " + limited;
+            if (offset > 0)
+                sql += (sql === '' ? '' : ' ') + "OFFSET " + offset;
         }
-        if (limited > 0)
-            sqllimit += (sqllimit === '' ? '' : ' ') + "LIMIT " + limited;
-        if (offset > 0)
-            sqllimit += (sqllimit === '' ? '' : ' ') + "OFFSET " + offset;
-        return ' ' + sqllimit;
-    },
+        return ' ' + sql;
+    }
 
-    getTableSql = function (table) {
+    function getTableSql(table) {
         if (typeof (table) === 'string' && table !== '') {
-            //table = table.replace(/\./g, "`.`");
-            //table = table.replace(/,/g, "`,`");
             return escape(table, true, true);
         } else
             return "";
-    },
+    }
 
-    get_deletesql = function (table, condition, order, limit) {
-        return "DELETE FROM " + getTableSql(table) + get_condition(condition) + get_order(order) + get_limit(limit);
-    },
+    function getDeleteSql(table, condition, order, limit) {
+        return "DELETE FROM " + getTableSql(table) + getCondition(condition) + getOrder(order) + getLimit(limit);
+     }
 
-    get_insertsql = function (table, data) {
-        var sqldata = '', sqlfields = '';
-        for (var name in data) {
-            sqlfields += (sqlfields !== '' ? ", " : "") + get_colnm(name);
-            sqldata += (sqldata !== '' ? ", " : "") + get_colval(data[name], name);
+    function getInsertSql(table, data) {
+        let sqlData = '', fields = '';
+        for (let name in data) {
+            fields += (fields !== '' ? ", " : "") + getColnm(name);
+            sqlData += (sqlData !== '' ? ", " : "") + getColVal(data[name], name);
         }
-        return "INSERT INTO " + getTableSql(table) + " (" + sqlfields + ") VALUES (" + sqldata + ")";
-    },
+        return "INSERT INTO " + getTableSql(table) + " (" + fields + ") VALUES (" + sqlData + ")";
+    }
 
-    get_inserts_sql = function (table, fields, data) {
-        var fieldcount = 0, sqlfields = '';
-        if (!common.isarray(fields) || common.empty(fields) || !common.isarray(data) || common.empty(data))
+    function getInsertsSql(table, fields, data) {
+        let fieldCount = 0, sqlFields = '';
+        if (!_.isArray(fields) || !fields || !_.isArray(data) || _.isEmpty(data))
             return false;
-        for (var name in fields) {
-            fieldcount++;
-            sqlfields += (sqlfields !== '' ? ", " : "") + get_colnm(fields[name]);
+        for (let name in fields) {
+            fieldCount++;
+            sqlFields += (sqlFields !== '' ? ", " : "") + getColnm(fields[name]);
         }
-        var sql_insertsvals = '';
-        for (var row in data) {
-            var sql_insertsval = '';
-            if (!common.empty(data[row]) && common.isarray(data[row]) && common.count(data[row]) === fieldcount) {
-                for (var col in data[row])
-                    sql_insertsval += (sql_insertsval === '' ? '' : ', ') + get_colval(data[row][col]);
-                sql_insertsvals += (sql_insertsvals === '' ? '' : ', ') + '(' + sql_insertsval + ')';
+        let values = '';
+        for (let row in data) {
+            let val = '';
+            if (data[row] && _.isArray(data[row]) && common.count(data[row]) === fieldCount) {
+                for (let col in data[row])
+                    val += (val === '' ? '' : ', ') + getColVal(data[row][col]);
+                values += (values === '' ? '' : ', ') + '(' + val + ')';
             } else
                 return false;
         }
-        return "INSERT INTO " + getTableSql(table) + " (" + sqlfields + ") VALUES " + sql_insertsvals;
-    },
+        return "INSERT INTO " + getTableSql(table) + " (" + fields + ") VALUES " + values;
+    }
 
-    getUpdateSql = function (table, data, condition, order, limit) {
-        var sqlsetdata = '';
-        for (var name in data)
-            sqlsetdata += (sqlsetdata !== '' ? ", " : "") + get_colnm(name) + " = " + get_colval(data[name], name);
-        return "UPDATE " + getTableSql(table) + " SET " + sqlsetdata + get_condition(condition) +
-            get_order(order) + get_limit(limit);
-    },
+    function getUpdateSql(table, data, condition, order, limit) {
+        let sqlSetData = '';
+        for (let name in data)
+            sqlSetData += (sqlSetData !== '' ? ", " : "") + getColnm(name) + " = " + getColVal(data[name], name);
 
-    getCopySql = function (srctable, dsttable, data, condition, order, limit, group, having) {
-        if (!common.empty(srctable) && !common.empty(dsttable) && !common.empty(data) && (typeof (data) === 'object' || data === '*')) {
-            var colsrc = [], coldes = [];
+        return "UPDATE " + getTableSql(table) + " SET " + sqlSetData + getCondition(condition) + getOrder(order) + getLimit(limit);
+    }
+
+    function getCopySql(srcTable, dstTable, data, condition, order, limit, group, having) {
+        if (srcTable && dstTable && data && (typeof data === 'object' || data === '*')) {
+            let colSrc = [], colDes = [];
             if (data === '*') {
-                return "INSERT INTO " + getTableSql(dsttable) + " " + getSelectSql(srctable, "*", condition, order, limit, group, having);
+                return "INSERT INTO " + getTableSql(dstTable) + " " + getSelectSql(srcTable, "*", condition, order, limit, group, having);
             } else {
-                for (var name in data) {
-                    colsrc.push(name);
-                    coldes.push(data[name]);
+                for (let name in data) {
+                    colSrc.push(name);
+                    colDes.push(data[name]);
                 }
-                var sqlcolsrc = getColSql(colsrc, false);
-                return "INSERT INTO " + getTableSql(dsttable) + "(" + sqlcolsrc + ") " +
-                    getSelectSql(srctable, coldes, condition, order, limit, group, having);
+                return "INSERT INTO " + getTableSql(dstTable) + "(" + getColSql(colSrc, false) + ") " + getSelectSql(srcTable, colDes, condition, order, limit, group, having);
             }
         } else
             return false;
-    },
+    }
 
-    getSelectSql = function (table, column, condition, order, limit, group, having) {
-        return "SELECT " + getColSql(column) + " FROM "
-            + getTableSql(table) + getCondition(condition)
-            + getGroup(group, having) + getOrder(order) + getLimit(limit);
-    },
+    function getSelectSql(table, column, condition, order, limit, group, having) {
+        return "SELECT " + getColSql(column) + " FROM " + getTableSql(table) +
+            getCondition(condition) + getGroup(group, having) +
+            getOrder(order) + getLimit(limit);
+    }
 
-    getPaging = function (perpage, total, now) {
-        perpage = parseInt(perpage, 10);
+    function getPaging(perPage, total, now) {
+        perPage = parseInt(perPage, 10);
         total = parseInt(total, 10);
         now = parseInt(now, 10);
-        if (total > perpage && now > 0) {
-            var pgtotal = ((total - (total % perpage)) / perpage);
-            pgtotal += ((total % perpage > 0) ? 1 : 0);
-            if (now > pgtotal)
-                now = pgtotal;
-            return {offset: now * perpage, limit: perpage};
+        if (total > perPage && now > 0) {
+            let totalPage = ((total - (total % perPage)) / perPage);
+            totalPage += ((total % perPage > 0) ? 1 : 0);
+            if (now > totalPage)
+                now = totalPage;
+            return {offset: now * perPage, limit: perPage};
         } else
             return {offset: 0, limit: 0};
-    },
+    }
 
-    close_connection = function (dbc) {
+    function closeConnection(dbc) {
         if (typeof (dbc) === 'object' && dbc !== null && typeof (dbc.release) === 'function')
             dbc.release();
-        return null;
-    },
-
-    sql_error = function (err, sql) {
-        syslog.error(`SQL ERROR: ${err.code}` + (!common.empty(sql) ? "\nSQL: " + sql : ''));
-    };
+    }
 
 module.exports = new DB();

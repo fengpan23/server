@@ -4,6 +4,7 @@
 "use strict";
 const _ = require('underscore');
 const db = require('../libs/db');
+const Util = require('../libs/util');
 
 const TABLE = 'agency';
 
@@ -17,11 +18,11 @@ class Agency{
      * @param params
      */
     get(dbc, params) {
-        let cond = [{"agency_id": params.agencyid}];
+        let cond = [{"agency_id": params.agencyId}];
         if (params && params.agencySite) {
             cond.push({agency_site: params.agencySite});
         }
-        return db.one(dbc, TABLE, '*', cond);
+        return db.one(dbc, TABLE, '*', cond).then(res => Promise.resolve(Util.format(TABLE, res)));
     }
 
     /**

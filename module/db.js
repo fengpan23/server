@@ -30,7 +30,7 @@ class DB {
     }
 
     query(dbc, sql) {
-       return db.query(dbc, sql).then().catch();
+       return db.query(dbc, sql);
     }
 
     getConnection() {
