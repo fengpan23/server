@@ -56,7 +56,7 @@ class Seat {
      * @param data
      */
     insert(dbc, fields, data) {
-        return db.inserts(dbc, TABLE, fields, data);
+        return db.inserts(dbc, TABLE, _.map(fields, field => TABLE + '_' + field), data);
     }
 
     /**

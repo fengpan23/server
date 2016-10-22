@@ -18,7 +18,7 @@ class Setting {
      * @param status
      */
     get (dbc, groupId, agencyId, status) {
-        let cond = [{game_group_setting_groupid: groupId}, {game_group_setting_agencyid: agencyId}, {game_group_setting_status: status}];
+        let cond = [{[TABLE + '_groupid']: groupId}, {[TABLE + '_agencyid']: agencyId}, {[TABLE + '_status']: status}];
         return db.one(dbc, TABLE, '*', cond);
     };
 }

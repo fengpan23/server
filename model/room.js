@@ -3,12 +3,13 @@
  */
 "use strict";
 const db = require('../libs/db');
+const util = require('../libs/util');
 
 const TABLE = "game_multiplayer_room";
 
 function getCond(params) {
     let cond = [];
-    if (params.roomid) cond.push({[TABLE + '_id']: params.roomId});
+    if (params.roomId) cond.push({[TABLE + '_id']: params.roomId});
     return cond;
 }
 
@@ -17,13 +18,7 @@ class Room{
     }
 
     get(dbc, params, order) {
-        return db.one(dbc, TABLE, '*', getCond(params), order).then(room => {
-            let results = {};
-            for(let key in room){
-                results[key.split('_').pop()] = room[key];
-            }
-            return Promise.resolve(results);
-        });
+        return db.one(dbc, TABLE, '*', getCond(params), order).then(room => Promise.resolve(util.format(TABLE, room)));
     }
 }
 

@@ -42,35 +42,37 @@ class G{
                 .then(() => {
                     if(this._table.roomid) {
                         Room.get(dbc, {roomId: this._table.roomid}).then(room => {
-                            _.extend(this._table, room);
+                            _.extend(this._table, _.omit(room, 'id'));
                         });
                     }
 
-                    return this._seats.init(dbc, this._table.id);
+                    return this._seats.init(dbc, this._table);
                 })
-                .then(seats => {
+                .then(() => {
                     return Game.get(dbc, this._table.gameid);
                 })
                 .then(game => {
-                    console.log('game');
-                    console.log(game);
+                    this._profile = game;
 
                     return Agency.get(dbc, {agencyId: this._table.topagentid});
                 })
                 .then(agency => {
-                    console.log('agency');
-                    console.log(agency);
+                    if (this._table.agentid === 0)
+                        this._profile.pool_agentid = this._table.topagentid;
 
-                    return AgencyGame.find(dbc, this._table.gameid, gameprofile.pool_agentid, 1);
+                    return AgencyGame.find(dbc, {gameId: this._table.gameid, agentId: this._profile.pool_agentid}, 1);
                 })
-                .then(() => {
-                    return SettingGroup.get(dbc, gameprofile.groupid, gameprofile.pool_agentid, 1);
+                .then(a => {
+                    // console.log(a)
+                    return SettingGroup.get(dbc, this._profile.groupid, this._profile.pool_agentid, 1);
                 })
-                .then(() => {
+                .then(b => {
+                    console.log('bbb', b);
                     return Setting.find(dbc, [{game_setting_agencyid: 0}, {game_setting_status: 1}]);
                 })
-                .then(() => {
-                    return  AgencyPool.get(dbc, dbc, this._table.gameid, this.agentid);
+                .then(c => {
+                    console.log('ccc', this._table);
+                    return  AgencyPool.get(dbc, this._table.ptype, this._table.gameid, this._table.agentid);
                 })
                 .catch(e => {
                     // dbc.rollback(dbc).then(() => {
@@ -86,7 +88,7 @@ class G{
                     return Promise.reject(e);
                 })
         ).then(res => {
-            console.log(res);
+            console.log('res', res);
             // this._table = res.table;
             // this._seats = res._seats;
         }).catch(e => {

@@ -307,4 +307,4 @@ class Index extends Events{
 
 module.exports = Index;
 
-new Index({tableId: 67});
+new Index({tableId: 67, api: {}});

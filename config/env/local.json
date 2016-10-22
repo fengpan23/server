@@ -5,9 +5,9 @@
                   "connectionLimit": 100,
                   "idleTimeoutMillis": 1200,
                   "waitForConnections": true,
-                  "host": "low.stargt.com.my",
-                  "user": "stargame",
-                  "password": "5a13aff6aaca4ce0690902e3d78d8cdc932ffccb",
+                  "host": "10.1.5.250",
+                  "user": "stargame_bigtwo",
+                  "password": "eae1c90b475bcd3c8266c7cb0cb2064e265b2e4d",
                   "database": "stargame_bigtwo",
                   "dateStrings": true
              }

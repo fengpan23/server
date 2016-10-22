@@ -110,7 +110,6 @@ class DB {
     }
 
     one(connection, table, column, condition, order, offset, group, having) {
-        console.log('condition: ', condition);
         let limit = offset ? {limit: 1, offset: +offset} : 1;
         return this.query(connection, getSelectSql(table, column, condition, order, limit, group, having)).then(result => {
             return Promise.resolve(result[0]);
@@ -206,7 +205,7 @@ class DB {
 }
 
     function escape(value, auto, column) {
-        if (typeof(value) !== 'string') value = value.toString();
+        if (typeof value !== 'string') value = common.toString(value);
         let strEscape = column === true ? mysql.escapeId(value) : mysql.escape(value);
         return auto === true ? strEscape : strEscape.substring(1, strEscape.length - 1);
     }
@@ -270,7 +269,7 @@ class DB {
             else
                 dbcolnow = escape(dbcolnm);
             if (alias)
-                dbcolnow += (typeof (dbcola) === 'string' && !common.isnumeric(dbcola) ? " AS " + escape(dbcola, true) : "");
+                dbcolnow += (typeof (dbcola) === 'string' && !common.isNumeric(dbcola) ? " AS " + escape(dbcola, true) : "");
         }
         return dbcolnow;
     }
@@ -495,7 +494,7 @@ class DB {
     function getOrder(order, group) {
         let sql = '', random = false;
         if (order) {
-            if (order !== null && !common.isarray(order) && typeof (order) === 'object')
+            if (order !== null && !_.isArray(order) && typeof (order) === 'object')
                 order = [order];
             if (_.isArray(order)) {
                 for (let i in order) {
@@ -507,7 +506,7 @@ class DB {
                             oname = '';
                         } else
                             otype = "ASC";
-                    } else if (typeof (order[i]) === 'object' && !common.empty(order[i])) {
+                    } else if (typeof (order[i]) === 'object' && !_.isEmpty(order[i])) {
                         let first = common.first(order[i]);
                         oname = first.key;
                         otype = first.value.toUpperCase();

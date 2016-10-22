@@ -8,8 +8,8 @@ const TABLE = 'agency_game';
 
 function cond(params) {
     let cond = [];
-    if (params.agencyid) cond.push({[TABLE + '_agencyid']: params.agencyid});
-    if (params.gameid) cond.push({[TABLE + '_gameid']: params.gameid});
+    if (params.agencyId) cond.push({[TABLE + '_agencyid']: params.agencyId});
+    if (params.gameId) cond.push({[TABLE + '_gameid']: params.gameId});
     if (params.status) cond.push({[TABLE + '_status']: params.status});
     return cond;
 }

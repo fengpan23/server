@@ -14,15 +14,15 @@ class AgencyPool {
         return db.insert(dbc, TABLE, {gameid: gameId, agentid: agentId});
     };
 
-    get (dbc, ptype, gameId, agentId) {
+    get (dbc, type, gameId, agentId) {
         let cond = [{agentid: agentId}, {gameid: gameId}];
         let cols = {
             "id": "id",
-            "pool": "current_" + ptype,
-            "current": "current_" + ptype,
-            "protect": "protect_" + ptype,
-            "total": "total_" + ptype,
-            "progjp": "progjp_" + ptype
+            "pool": "current_" + type,
+            "current": "current_" + type,
+            "protect": "protect_" + type,
+            "total": "total_" + type,
+            "progjp": "progjp_" + type
         };
         return db.one(dbc, TABLE, cols, cond);
     };
