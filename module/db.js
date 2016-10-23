@@ -2,6 +2,8 @@
  * Created by fp on 2016/10/13.
  */
 "use strict";
+const Log = require('log')();
+
 const Mysql = require('mysql');
 const db = require('../libs/db');
 
@@ -12,7 +14,7 @@ class DB {
             this._cluster.add(name, options.nodes[name]);
 
         this._cluster.on('remove', id => {
-            log.error('Mysql Node error, removed node ' + id); // nodeId = SLAVE1
+            Log.error('Mysql cluster error, removed node ' + id); // nodeId = SLAVE1
         });
     }
 
@@ -44,7 +46,7 @@ class DB {
     end() {
         return new Promise((resolve, reject) => {
             this._cluster.end(err => {
-                err ? reject(err) : resolve(conn);
+                err ? reject(err) : resolve();
             })
         })
     }

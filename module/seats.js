@@ -1,12 +1,12 @@
 /**
  * Created by fp on 2016/10/21.
  */
-
+const _ = require('underscore');
 const Seat = require('../model/seat');
 
 class Seats {
     constructor() {
-        this._seats = {};
+        this._seats = new Map();
     }
 
     init(dbc, table, reload){
@@ -24,7 +24,7 @@ class Seats {
                     if (seat.state !== 'idle' || seat.kioskid !== null || seat.agentid !== table.agentid || seat.gameid !== table.gameid || seat.roomid !== table.roomid)
                         updateIndex.push(seat.index);
 
-                    this._seats[seat.index] = 'empty';
+                    this._seats.set(seat.index, 'empty');
                 });
 
                 let insert = [];
@@ -48,6 +48,47 @@ class Seats {
             }
 
             return Promise.all(all).then(() => Promise.resolve(this._seats));
+        });
+    }
+
+    /**
+     * @param dbc
+     * @param options
+     *        kiosk:    player info         玩家信息
+     *        index:    choose seat index   玩家选择的座位
+     *        adjust:   adjust seat         在座位被抢时是否调剂
+     * @return {Promise.<TResult>}
+     */
+    choose(dbc, opt){
+        let seatIndex;
+        if(this._seats.get(opt.index) === 'empty'){
+            seatIndex = opt.index;
+            this._seats.set(opt.index, 'occupy');
+        }else if(!opt.index || opt.adjust){
+            for (let [k, v] of this._seats) {
+                if (v === 'empty') {
+                    this._seats.set(k, 'occupy');
+                    seatIndex = +k;
+                    break;
+                }
+            }
+        }
+
+        if(!seatIndex)
+            return Promise.reject(opt.index ? 'seat: ' + opt.index + ' has already be sit.' : 'have no seat to choose.');
+
+        let params = _.pick(opt, 'gameid', 'tableid');
+        params.seatindex = seatIndex;
+
+        let data = _.pick(opt, 'kiosk_id', 'ip', 'port');
+        data.state = 'seating';
+
+        return Seats.update(dbc, params, data).then(() => {
+            let cur = 0;
+            for (let v of this._seats.values())
+                if(v !== 'empty')cur++;
+
+            return Promise.resolve(cur);
         });
     }
 }

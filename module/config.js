@@ -6,7 +6,7 @@ const _ = require('underscore');
 const fs = require('fs');
 const path = require('path');
 
-const log = require('log')();
+const Log = require('log')();
 
 const PATH = './config';
 const ENV = 'env';
@@ -28,7 +28,7 @@ class Config {
                 this.setting.set(key, file[key]);
             }
         } catch (err) {
-            log.error(`Error load file:${fileName}, err:(${err})`);
+            Log.error(`Error load file:${fileName}, err:(${err})`);
         }
     }
 

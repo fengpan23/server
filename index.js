@@ -7,6 +7,7 @@ const Events = require('events');
 
 const Log = require('log');
 const Engine = require('engine');
+
 const Game = require('./module/game');
 const Config = require('./module/config');
 
@@ -18,13 +19,14 @@ class Index extends Events{
     constructor(options) {
         super();
 
-        new Log({env: 'develop', singleton: true});       //create global log
-        this._config = new Config();
+        new Log({env: 'develop', singleton: true});       //create singleton log
+
+        this._config = new Config();            //create config file module
 
         this._engine = new Engine();
         this._engine.on('request', request => {     //request.content => json {event: String, data: Obj}
             if(options.api){
-                let api = options.api[request.getAttribute('event')];
+                let api = options.api[request.getParams('event')];
                 api ? api(request) : request.close('unknown_action');
             }else{
                 this.emit('request', request);
@@ -34,48 +36,43 @@ class Index extends Events{
         });
 
         let opt = {
-            cluster: this._config.get('cluster'),
-            nodes: this._config.get('db.nodes')
+            nodes: this._config.get('db.nodes'),
+            cluster: this._config.get('cluster')
         };
         this._game = new Game(opt);
         this._game.init(_.pick(options, 'tableId')).then(() => {
             this._engine.start(_.pick(options, 'port', 'ip'));      //port and ip to create socket server  default port:2323, ip:localhost
         }).catch(e => {
-            console.error(e);
+            Log.error('Game init error server.game.init: ', e);
         });
+
+        this.players = new Map();   //join game players
     };
 
     open(){
-        let kioskssnapshot = new Map();
-        return new Promise(function (resolve, reject) {
-            // 校验 ‘游戏是否正在暂停’ ||  ‘游戏是否已开场’
-            if (common.validate({id: 'number+'}, me.gamematchresult)) {
-                me.server.errorlog("error", "system_maintenance", "match is already opened on engine.matchopen");
-                return reject(new wrong("error", "system_maintenance", "match is already opened on engine.matchopen"));
-            }
-            let dbc = null;
-            let playersmap = new Map();
-            // step 1 : 初始化引擎
-            this._game.init(me.table.tableid, true).then(function () {
-                return me._wait();
-            }).then(function () {
-                players = me.getplayers();
-                players.forEach(function (cli) {
-                    kioskssnapshot.set(cli.kiosk.kiosk_id, common.clone(cli.kiosk));
-                });
+        if (this._game.id){        // 校验 ‘游戏是否正在暂停’ ||  ‘游戏是否已开场’
+            return Promise.reject("match is already opened on engine.open");
+        }
 
-                let maintenance = false;
-                let error = null;
-                if (common.tonumber(me.table.status, 0) === 0) {// 检查桌子是否激活
-                    maintenance = true;
-                    error = new wrong('error', 'system_maintenance', 'table is not active status on engine.matchopen');
-                    error.setignore(true);
-                } else if (common.tonumber(me.gameprofile.setting.system_maintenance, 0) !== 0) {//检查是否系统维护
-                    maintenance = true;
-                    error = new wrong('error', 'system_maintenance', 'System Maintenance on engine.matchopen');
-                } else if (common.tonumber(me.gameprofile.status, 0) !== 1) {//检查游戏是否关闭
-                    maintenance = true;
-                    error = new wrong('error', 'system_maintenance', 'game is not active status on engine.matchopen');
+        // step 1 : 初始化引擎
+        this._game.init(this.table.id, true).then(() => {
+            players = me.getplayers();
+            players.forEach(function (cli) {
+                kioskssnapshot.set(cli.kiosk.kiosk_id, common.clone(cli.kiosk));
+            });
+
+            let maintenance = false;
+            let error = null;
+            if (common.tonumber(me.table.status, 0) === 0) {// 检查桌子是否激活
+                maintenance = true;
+                error = new wrong('error', 'system_maintenance', 'table is not active status on engine.matchopen');
+                error.setignore(true);
+            } else if (common.tonumber(me.gameprofile.setting.system_maintenance, 0) !== 0) {//检查是否系统维护
+                maintenance = true;
+                error = new wrong('error', 'system_maintenance', 'System Maintenance on engine.matchopen');
+            } else if (common.tonumber(me.gameprofile.status, 0) !== 1) {//检查游戏是否关闭
+                maintenance = true;
+                error = new wrong('error', 'system_maintenance', 'game is not active status on engine.matchopen');
                 }
                 if (maintenance) {
                     players.forEach(function (client) {
@@ -170,8 +167,7 @@ class Index extends Events{
                     reject(_err);
                 });
             });
-        });
-    }
+        };
 
     close(){
         let me = this;
@@ -273,18 +269,52 @@ class Index extends Events{
         });
     }
 
-    init(request) {
-        console.log('api init');
-        let players = this._engine.getClients();
-        request.response('game', {s: 122112, c: 2132323, id: players[0].id});
-        request.close();
+    /**
+     * player login game
+     * @param session
+     * @returns {Promise}
+     */
+    login(request){
+        if (this.closed)
+            return Promise.reject("engine is closed on engine.init");
+
+        let session = request.getParams('session');
+
+        return this._game.login(session).then(res => {
+            request.set({status: 'login', kiosk: res.kiosk, agency: res.agency});      //login success update player status
+
+
+            return Promise.resolve(this._engine.getClients());
+        }).catch(err => {
+            return Promise.reject(err);
+        });
     };
 
+    /**
+     * player have seat
+     * @param request
+     * @returns {Promise}
+     */
     seat(request) {
+        if (this.status)
+            return Promise.reject("engine is closed on engine.seat");
+        if (request.get('status') !== 'login')
+            return Promise.reject('player seat to the table on engine.seat error status: ' + request.status());
 
+        let opt = {kiosk: request.get('kiosk'), index: request.getParams('seatindex')};
+        this._game.seat(opt).then(player => {
+
+            this.players.set(player, player);
+            request.set('status', 'seat');
+
+            return Promise.resolve(player);
+        }).catch(err => {
+            return Promise.reject(err);
+        });
     };
 
     win(request) {
+
     };
 
     quit(request){
