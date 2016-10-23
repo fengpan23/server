@@ -53,11 +53,11 @@ class Seats {
 
     /**
      * @param dbc
-     * @param options
+     * @param opt {object}
      *        kiosk:    player info         玩家信息
      *        index:    choose seat index   玩家选择的座位
      *        adjust:   adjust seat         在座位被抢时是否调剂
-     * @return {Promise.<TResult>}
+     * @return {Promise.<*>}
      */
     choose(dbc, opt){
         let seatIndex;
@@ -73,17 +73,14 @@ class Seats {
                 }
             }
         }
-
         if(!seatIndex)
             return Promise.reject(opt.index ? 'seat: ' + opt.index + ' has already be sit.' : 'have no seat to choose.');
 
-        let params = _.pick(opt, 'gameid', 'tableid');
+        let params = _.pick(opt, 'tableId', 'gameId');
         params.seatindex = seatIndex;
 
         let data = _.pick(opt, 'kiosk_id', 'ip', 'port');
-        data.state = 'seating';
-
-        return Seats.update(dbc, params, data).then(() => {
+        return Seat.update(dbc, params, data).then(() => {
             let cur = 0;
             for (let v of this._seats.values())
                 if(v !== 'empty')cur++;

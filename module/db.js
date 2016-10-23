@@ -31,6 +31,21 @@ class DB {
         });
     }
 
+
+    over(dbc){
+        return db.commit(dbc).then(success => {
+            return success ? Promise.resolve(db.destroy(dbc)) : Promise.reject('db commit fail, please try again later');
+        });
+    }
+
+
+    close(dbc){
+        return db.rollback(dbc).then(success => {
+            return success ? Promise.resolve(db.destroy(dbc)) : Promise.reject('db close fail, please try again later');
+        });
+    }
+
+
     query(dbc, sql) {
        return db.query(dbc, sql);
     }

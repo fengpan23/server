@@ -15,6 +15,5 @@ class Util {
         }
         return results;
     }
-
 }
 module.exports = new Util();

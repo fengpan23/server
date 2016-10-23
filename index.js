@@ -278,13 +278,12 @@ class Index extends Events{
         if (this.closed)
             return Promise.reject("engine is closed on engine.init");
 
-        let session = request.getParams('session');
+        let session = request.getParams('content.session');
 
-        return this._game.login(session).then(res => {
-            request.set({status: 'login', kiosk: res.kiosk, agency: res.agency});      //login success update player status
+        return this._game.login(session).then(player => {
+            request.set({player: player});      //login success update player status
 
-
-            return Promise.resolve(this._engine.getClients());
+            return Promise.resolve(player);
         }).catch(err => {
             return Promise.reject(err);
         });
@@ -298,14 +297,14 @@ class Index extends Events{
     seat(request) {
         if (this.status)
             return Promise.reject("engine is closed on engine.seat");
-        if (request.get('status') !== 'login')
-            return Promise.reject('player seat to the table on engine.seat error status: ' + request.status());
 
-        let opt = {kiosk: request.get('kiosk'), index: request.getParams('seatindex')};
-        this._game.seat(opt).then(player => {
+        let player = request.get('player');
+        if (player.get('status') !== 'login')
+            return Promise.reject('player seat error on engine.seat, player status: ' + player.get('status'));
 
-            this.players.set(player, player);
-            request.set('status', 'seat');
+        return this._game.seat(player, request.getParams('content.seatindex')).then(pla => {
+
+            this.players.set(player, pla);
 
             return Promise.resolve(player);
         }).catch(err => {
@@ -337,4 +336,22 @@ class Index extends Events{
 
 module.exports = Index;
 
-new Index({tableId: 67, api: {}});
+"use strict";
+let server = new Index({tableId: 211, api: {
+    init: function (request) {
+        server.login(request).then(s => {
+            console.log('username: ', s.getUsername());
+
+
+            server.seat(request).then(s => {
+                console.log('seat: ', s.getUsername());
+
+            }).catch(e => {
+                console.error(e);
+            })
+        }).catch(e => {
+            console.error(e);
+        })
+
+    }
+}});

@@ -66,7 +66,7 @@ class Seat {
      * @param data
      */
     update(dbc, params, data) {
-        let seat = {[TABLE + '_updated'] : common.datetimezoneformat(new Date(), configs.envconf().timezone)};
+        let seat = {[TABLE + '_updated'] : +new Date()};
 
         let d = _.pick(data, 'kioskid', 'agentid', 'gameid', 'roomid', 'state', 'ip', 'port')
         for(let key in d){

@@ -4,6 +4,7 @@
 
 "use strict";
 const db = require('../libs/db');
+const Util = require('../libs/util');
 
 const TABLE = "kiosk";
 
@@ -20,7 +21,7 @@ class Kiosk{
     }
 
     get(dbc, params) {
-        return db.one(dbc, TABLE, '*', Cond(params));
+        return db.one(dbc, TABLE, '*', Cond(params)).then(kiosk => Promise.resolve(Util.format(TABLE, kiosk)));
     }
 
     /**

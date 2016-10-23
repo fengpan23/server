@@ -330,14 +330,14 @@ class DB {
                 switch (key.toUpperCase()) {
                     case "LIST":
                     case "IN":
-                        if (typeof (value) === 'object' && !common.empty(value))
+                        if (typeof (value) === 'object' && value)
                             for (let vkey in value)
                                 result.push(escape(value[vkey]));
                         str += " IN ('" + common.implode("','", result) + "')";
                         break;
                     case "XLIST":
                     case "XIN":
-                        if (typeof (value) === 'object' && !common.empty(value))
+                        if (typeof (value) === 'object' && value)
                             for (let vkey in value)
                                 result.push(escape(value[vkey]));
                         str += " NOT IN ('" + common.implode("','", result) + "')";

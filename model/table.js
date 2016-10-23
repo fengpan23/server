@@ -44,7 +44,7 @@ class Table {
      */
     update(dbc, params, data) {
         let cond = _getCond(params);
-        let table = {[TABLE +　'_updated']: common.datetimezoneformat(new Date(), configs.envconf().timezone)};
+        let table = {[TABLE +　'_updated']: +new Date()};
         let columns = _.pick(data, 'agentid', 'gameid', 'status', 'index', 'ptype', 'maxkiosk',
                                     'curkiosk', 'privateip', 'ip', 'port', 'minbet', 'maxbet',
                                     'stakes', 'dfstake', 'extend', 'ptmultiplier', 'lastmatch');

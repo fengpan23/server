@@ -106,54 +106,70 @@ class G{
      * @returns {Promise.<T>}
      */
     login(session){
-        return this._db.begin().then(dbc => {
-            return Player.verify(dbc, session).then(kiosk => {
-                return Agency.get(dbc, {agencyid: kiosk.kiosk_agencyid});
-            }).then(agency => {
+        return this._db.begin().then(dbc =>
+            new Promise((resolve, reject) => {
+                let player = new Player();
 
-                let poolagentid = _agency.agency_follow_top_agentpool === 'Y' ?
-                    (_agency.agency_top_agencyid <= 0 ? _agency.agency_id : _agency.agency_top_agencyid) : _agency.agency_id;
-                let topagentid = _agency.agency_top_agencyid;
+                player.init(dbc, session).then(kiosk => {
+                    return Agency.get(dbc, {agencyId: kiosk.agencyid});
+                }).then(agency => {
+                    let poolAgentId = agency.follow_top_agentpool === 'Y' ? (agency.top_agencyid <= 0 ? agency.id : agency.top_agencyid) : agency.id;
+                    if ((this._table.agentid === 0 && this._table.topagentid === agency.top_agencyid) || poolAgentId === this._table.poolagentid) {
 
-                if ((table.agentid === 0 && table.topagentid === topagentid) || poolagentid === table.poolagentid) {
-                    let agentstructure = (typeof _agency.agency_upline_structure === 'string') ?
-                        _agency.agency_upline_structure.split(",") : [];
-                    agentstructure.push(_agency.agency_id);
-                    return AgencySuspend.getCount(dbc, agentstructure);
-                } else
-                    return Promise.reject('agency is not active on game.login');
-            }).then(function (count) {
-                if (count > 0)
-                    reject(new wrong('error', 'agent_suppended', 'there are agency suspend on kiosk.load'));
-                else
-                    resolve();
-            }).catch(function (err) {
-                reject(err);
-            });
-
-        }).then(() => {
-            return Promise.resolve({kiosk: {}, agency: {}});
-        }).catch();
+                        let structure = (typeof agency.upline_structure === 'string') ? agency.upline_structure.split(",") : [];
+                        structure.push(agency.id);
+                        return AgencySuspend.getCount(dbc, structure);
+                    } else
+                        return reject('agency is not active on game.login');
+                }).then(count => {
+                    if (count > 0)
+                        return reject('agent_suspended, there are agency suspend on game.login');
+                    else
+                        return this._db.over(dbc).then(() => {
+                            player.set('status', 'login');
+                            resolve(player)
+                        });
+                }).catch(e => {
+                    this._db.close(dbc).then(() => reject(e)).catch(reject)
+                });
+            })
+        );
     }
 
 
-    seat(options){
+    /**
+     *
+     * @param player
+     * @param index
+     * @return {Promise.<TResult>}
+     */
+    seat(player, index){
         return this._db.begin().then(dbc =>
-            this._seats.choose(dbc, _.pick(options, 'tableid', 'gameid')).then(curKiosk => {
+            new Promise((resolve, reject) => {
+                let opt = {
+                    index: index,
+                    tableId: this._table.id,
+                    gameId: this._table.gameid,
+                    kioskId: player.get('kiosk.id'),
+                    ip: 12,
+                    port: 123
+                };
+                this._seats.choose(dbc, opt).then(curKiosk => {
+                    console.log('curkiosk: ', curKiosk);
 
-                let params = _.pick(options, 'tableid', 'gameid');
-
-                return Table.update(dbc, params, {curkiosk: curKiosk});
-            }).then(() => {
-                let player = new Player();
-
-                dbc.commint();
-                return Promise.resolve(player);
-            })
-        ).then(palyer => {
+                    return Table.update(dbc, _.pick(opt, 'tableId', 'gameId'), {curkiosk: curKiosk});
+                }).then(() => {
+                    return this._db.over(dbc).then(() => {
+                        player.set('status', 'seat');
+                        resolve(player)
+                    });
+                }).catch(e => {
+                    this._db.close(dbc).then(() => reject(e)).catch(reject)
+                });
+        }).then(palyer => {
 
             return Promise.resolve(palyer);
-        });
+        }))
     }
 }
 
