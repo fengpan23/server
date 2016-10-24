@@ -20,7 +20,7 @@ const Player = require('./player');
 
 class G{
     constructor(options){
-        this.id = null;
+        this._id = null;
         this._table = {};
         this._seats = new Seats();
         this._profile = {};
@@ -100,6 +100,53 @@ class G{
         });
     }
 
+    start(opt){
+        if (this._table.status === 0) {     // 检查桌子是否激活
+            return Promise.reject('system_maintenance, Table is not active status on engine.open');
+        } else if (this._profile.setting.system_maintenance !== 0) {    //检查是否系统维护
+            return Promise.reject('system_maintenance, System Maintenance on engine.open');
+        } else if (this._profile.status !== 1) {            //检查游戏是否关闭
+            return Promise.reject('system_maintenance, Game is not active status on engine.open');
+        }
+
+        this.init({reload: true}).then(() => {
+            // game.checkagencygame(dbc, me.gameprofile);
+        }).then(() => {
+            // return gamematch.open(dbc, me.table);
+        }).then(matchId => {
+            this._id = matchId;
+            this._table.matchid = matchId;
+        }).then(() => {
+            let idx = 0;
+            let error = false;
+            if (idx < players.length) {
+                let client = players[idx];
+                idx++;
+                if (client.closed)
+                    return kioskreload();
+                kiosk.reload(dbc, client, me.table).then(function () {
+                    playersmap.set(client.kiosk.kiosk_id, client);
+                    kioskreload();
+                }).catch(function (err) {
+                    (!error) && (error = err);
+                    kioskreload();
+                })
+            } else {
+                return !!error ? _rej(error) : _res();
+            }
+        }).then(() => {
+            if (opt.deposit) {
+                // _cleardepositmap(me);
+                // return gamematch.depositmatchopen(dbc, playersmap, me.table, me.depositbalance);
+            } else
+                return Promise.resolve();
+        }).then(() => {
+            return this._db.over(dbc);
+        }).catch(function (err) {
+            this._db.close(dbc).then(() => reject(e)).catch(reject)
+        });
+    }
+
     /**
      * verify player
      * @param session
@@ -136,9 +183,8 @@ class G{
         );
     }
 
-
     /**
-     *
+     *  player have seat
      * @param player
      * @param index
      * @return {Promise.<TResult>}

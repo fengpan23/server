@@ -41,12 +41,10 @@ class Seats {
                 insert.length > 0 && all.push(Seat.insert(dbc, fields, insert));
             }
 
-
             if (updateIndex.length > 0) {//重置座位
                 let data = {gameid: table.gameid, roomid: table.roomid, state: 'idle', kioskid: null, ip: '0.0.0.0', port: 0};
                 all.push(Seat.update(dbc, {tableId: table.id, seatIndex: {IN: updateIndex}}, data));
             }
-
             return Promise.all(all).then(() => Promise.resolve(this._seats));
         });
     }

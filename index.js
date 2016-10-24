@@ -5,7 +5,7 @@
 const _ = require('underscore');
 const Events = require('events');
 
-const Log = require('log');
+const Log = require('log')({env: 'develop', singleton: true});   //create singleton log
 const Engine = require('engine');
 
 const Game = require('./module/game');
@@ -18,9 +18,6 @@ class Index extends Events{
      */
     constructor(options) {
         super();
-
-        new Log({env: 'develop', singleton: true});       //create singleton log
-
         this._config = new Config();            //create config file module
 
         this._engine = new Engine();
@@ -50,124 +47,19 @@ class Index extends Events{
     };
 
     open(){
-        if (this._game.id){        // 校验 ‘游戏是否正在暂停’ ||  ‘游戏是否已开场’
+        if (this._game.id)       // 校验 ‘游戏是否正在暂停’ ||  ‘游戏是否已开场’
             return Promise.reject("match is already opened on engine.open");
-        }
 
-        // step 1 : 初始化引擎
-        this._game.init(this.table.id, true).then(() => {
-            players = me.getplayers();
-            players.forEach(function (cli) {
-                kioskssnapshot.set(cli.kiosk.kiosk_id, common.clone(cli.kiosk));
+        return this._game.start().then(() => {
+            return Promise.resolve(this.players);
+        }).catch(e => {
+            let clients = this._engine.getClients(this.players.keys());
+            clients.forEach(client => {
+                client.close('system_maintenance');
             });
-
-            let maintenance = false;
-            let error = null;
-            if (common.tonumber(me.table.status, 0) === 0) {// 检查桌子是否激活
-                maintenance = true;
-                error = new wrong('error', 'system_maintenance', 'table is not active status on engine.matchopen');
-                error.setignore(true);
-            } else if (common.tonumber(me.gameprofile.setting.system_maintenance, 0) !== 0) {//检查是否系统维护
-                maintenance = true;
-                error = new wrong('error', 'system_maintenance', 'System Maintenance on engine.matchopen');
-            } else if (common.tonumber(me.gameprofile.status, 0) !== 1) {//检查游戏是否关闭
-                maintenance = true;
-                error = new wrong('error', 'system_maintenance', 'game is not active status on engine.matchopen');
-                }
-                if (maintenance) {
-                    players.forEach(function (client) {
-                        client.close('system_maintenance');
-                    });
-                    return Promise.reject(error);
-                } else {
-                    return Promise.resolve();
-                }
-            }).then(function () {
-                return db.begin();
-            }).then(function (_dbc) {
-                dbc = _dbc;
-                // step 2 : 校验游戏是否有代理
-                return game.checkagencygame(dbc, me.gameprofile);
-            }).then(function () {
-                // step 3 : 游戏开场
-                return gamematch.open(dbc, me.table);
-            }).then(function (_matchid) {
-                me.gamematchresult.id = _matchid;
-                me.table.matchid = _matchid;
-                // step 4 : 重载在场玩家信息
-                return new Promise(function (_res, _rej) {
-                    let idx = 0;
-                    let error = false;
-
-                    function kioskreload() {
-                        if (idx < players.length) {
-                            let client = players[idx];
-                            idx++;
-                            if (client.closed)
-                                return kioskreload();
-                            kiosk.reload(dbc, client, me.table).then(function () {
-                                playersmap.set(client.kiosk.kiosk_id, client);
-                                kioskreload();
-                            }).catch(function (err) {
-                                (!error) && (error = err);
-                                kioskreload();
-                            })
-                        } else {
-                            return !!error ? _rej(error) : _res();
-                        }
-                    }
-
-                    kioskreload();
-                });
-            }).then(function () {
-                if (me.options.deposit) {
-                    _cleardepositmap(me);
-                    return gamematch.depositmatchopen(dbc, playersmap, me.table, me.depositbalance);
-                } else
-                    return Promise.resolve();
-            }).then(function () {
-                return db.commit(dbc);
-            }).then(function () {
-                db.destroy(dbc);
-                me._resume();
-                resolve({players: players});
-            }).catch(function (err) {
-                db.rollback(dbc).then(function () {
-                    db.destroy(dbc);
-                    wrong.wronghandler(err, function (type, code, debug) {
-                        me.kickplayers();
-                        me.server.errorlog(type, code, debug);
-                    }, function () {
-                        me.kickplayers();
-                        me.server.errorlog('error', 'unexpected_error', err);
-                    }, function (type, code, debug) {
-                        me.server.errorlog(type, code, debug);
-                    });
-                    _initgameresult(me);
-                    players.forEach(function (cli) {
-                        kioskssnapshot.has(cli.kiosk.kiosk_id) && (cli.kiosk = kioskssnapshot.get(cli.kiosk.kiosk_id));
-                    });
-                    me._resume();
-                    reject(err);
-                }).catch(_err=> {
-                    wrong.wronghandler(_err, function (type, code, debug) {
-                        me.kickplayers();
-                        me.server.errorlog(type, code, debug);
-                    }, function () {
-                        me.kickplayers();
-                        me.server.errorlog('error', 'unexpected_error', _err);
-                    }, function (type, code, debug) {
-                        me.server.errorlog(type, code, debug);
-                    });
-                    _initgameresult(me);
-                    players.forEach(function (cli) {
-                        kioskssnapshot.has(cli.kiosk.kiosk_id) && (cli.kiosk = kioskssnapshot.get(cli.kiosk.kiosk_id));
-                    });
-                    me._resume();
-                    reject(_err);
-                });
-            });
-        };
+            return Promise.reject(e);
+        });
+    }
 
     close(){
         let me = this;
@@ -271,7 +163,7 @@ class Index extends Events{
 
     /**
      * player login game
-     * @param session
+     * @param request
      * @returns {Promise}
      */
     login(request){
@@ -284,8 +176,8 @@ class Index extends Events{
             request.set({player: player});      //login success update player status
 
             return Promise.resolve(player);
-        }).catch(err => {
-            return Promise.reject(err);
+        }).catch(e => {
+            return Promise.reject(e);
         });
     };
 
@@ -302,13 +194,13 @@ class Index extends Events{
         if (player.get('status') !== 'login')
             return Promise.reject('player seat error on engine.seat, player status: ' + player.get('status'));
 
-        return this._game.seat(player, request.getParams('content.seatindex')).then(pla => {
+        return this._game.seat(player, request.getParams('content.seatindex')).then(p => {
 
-            this.players.set(player, pla);
+            this.players.set(request.get('id'), p);
 
             return Promise.resolve(player);
-        }).catch(err => {
-            return Promise.reject(err);
+        }).catch(e => {
+            return Promise.reject(e);
         });
     };
 
