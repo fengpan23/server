@@ -8,7 +8,7 @@ const path = require('path');
 
 const Log = require('log')();
 
-const PATH = './config';
+const PATH = '../config';
 const ENV = 'env';
 const NODE_ENV = (process.env.NODE_ENV || 'local').toLowerCase();
 
@@ -21,7 +21,7 @@ class Config {
     }
 
     load(dir, fileName) {
-        let file = fs.readFileSync(path.join(dir, fileName), "utf8");
+        let file = fs.readFileSync(path.join(__dirname, dir, fileName), "utf8");
         try {
             file = JSON.parse(file);
             for(let key in file){
