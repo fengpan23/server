@@ -27,13 +27,14 @@ class Player {
     }
 
     get(key){
-        return this[key];
-    }
-
-    getUsername(){
-        return this._kiosk.username;
+        switch (key){
+            case 'username':
+                return this._kiosk.username;
+            case 'kiosk':
+                break;
+        }
+        return this['_' + key];
     }
 }
-
 
 module.exports = Player;

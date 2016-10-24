@@ -62,11 +62,6 @@ class Index extends Events{
     }
 
     close(){
-        let me = this;
-        //if (me.pause) {
-        //    me.server.errorlog("error", "system_maintenance", 'engine is paused on engine.MatchClose');
-        //    return Promise.reject(new wrong("error", "system_maintenance", 'engine is paused on engine.MatchClose'));
-        //}
         if (me.options.deposit && me.getdepositstake() !== me.getdepositwin()) {
             return Promise.reject(new wrong("error", "invalid_action", 'staketotal is not equal wintotal on engine.MatchClose'));
         }
@@ -173,7 +168,7 @@ class Index extends Events{
         let session = request.getParams('content.session');
 
         return this._game.login(session).then(player => {
-            request.set({player: player});      //login success update player status
+            request.set({player: player});      //login success keep player alive on client
 
             return Promise.resolve(player);
         }).catch(e => {
@@ -224,10 +219,15 @@ class Index extends Events{
 
     exit() {
     };
+
+    get(name){
+        this._game.get(name);
+    }
 }
 
 module.exports = Index;
-
+//test
+if (require.main !== module) return;
 "use strict";
 let server = new Index({tableId: 211, api: {
     init: function (request) {

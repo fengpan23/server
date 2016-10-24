@@ -94,6 +94,7 @@ class G{
             console.log('res', res);
             // this._table = res.table;
             // this._seats = res._seats;
+            // return Promise.resolve({ip: '', port: ''});
         }).catch(e => {
             Log.error('eeee');
             Log.error(e.stack);
@@ -212,7 +213,8 @@ class G{
                 }).catch(e => {
                     this._db.close(dbc).then(() => reject(e)).catch(reject)
                 });
-        }).then(palyer => {
+            }
+        ).then(palyer => {
 
             return Promise.resolve(palyer);
         }))
