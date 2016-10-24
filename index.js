@@ -3,6 +3,7 @@
  */
 
 const _ = require('underscore');
+const Common = require('common');
 const Events = require('events');
 
 const Log = require('log')({env: 'develop', singleton: true});   //create singleton log
@@ -24,7 +25,7 @@ class Index extends Events{
         this._engine.on('request', request => {     //request.content => json {event: String, data: Obj}
             if(options.api){
                 let api = options.api[request.getParams('event')];
-                api ? api(request) : request.close('unknown_action');
+                api ? Common.invokecallback(options.api, api, request) : request.close('unknown_action');
             }else{
                 this.emit('request', request);
             }
