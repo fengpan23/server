@@ -28,6 +28,10 @@ class G{
         this._db = new DB(_.pick(options, 'cluster', 'nodes'));
     }
 
+    get(name){
+        return this['_' + name];
+    }
+
     init(opt){
         return this._db.begin().then(dbc =>
             Table.get(dbc, {tableId: opt.tableId})

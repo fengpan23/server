@@ -31,6 +31,10 @@ class Player {
             case 'username':
                 return this._kiosk.username;
             case 'kiosk':
+                return this._kiosk;
+                break;
+            case 'point':
+                return this._kiosk['balance_a'];
                 break;
         }
         return this['_' + key];
