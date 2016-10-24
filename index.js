@@ -25,7 +25,7 @@ class Index extends Events{
         this._engine.on('request', request => {     //request.content => json {event: String, data: Obj}
             if(options.api){
                 let api = options.api[request.getParams('event')];
-                api ? Common.invokecallback(options.api, api, request) : request.close('unknown_action');
+                api ? Common.invokeCallback(options.api, api, request) : request.close('unknown_action');
             }else{
                 this.emit('request', request);
             }
