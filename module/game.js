@@ -101,6 +101,7 @@ class G{
             // return Promise.resolve({ip: '', port: ''});
         }).catch(e => {
             Log.error(e.stack);
+            return Promise.reject()
         });
     }
 

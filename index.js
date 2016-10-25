@@ -3,7 +3,6 @@
  */
 
 const _ = require('underscore');
-const Common = require('common');
 const Events = require('events');
 
 const Log = require('log')({env: 'develop', singleton: true});   //create singleton log
@@ -11,6 +10,7 @@ const Engine = require('engine');
 
 const Game = require('./module/game');
 const Config = require('./module/config');
+const Request = require('./module/request');
 
 class Index extends Events{
     /**
@@ -23,12 +23,14 @@ class Index extends Events{
 
         this._engine = new Engine();
         this._engine.on('request', request => {     //request.content => json {event: String, data: Obj}
-            if(options.api){
-                let api = options.api[request.getParams('event')];
-                api ? Common.invokeCallback(options.api, api, request) : request.close('unknown_action');
-            }else{
-                this.emit('request', request);
-            }
+            let cc = new Request(request);
+            console.log('cc', cc);
+            // if(options.api){
+            //     let api = options.api[request.getParams('event')];
+            //     api ? Common.invokeCallback(options.api, api, request) : request.close('unknown_action');
+            // }else{
+            //     this.emit('request', request);
+            // }
         }).on('reconnect', request => {
             console.info('client reconnect !!!');
 
