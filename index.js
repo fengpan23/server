@@ -30,7 +30,11 @@ class Index extends Events{
                 this.emit('request', request);
             }
         }).on('reconnect', request => {
+            console.info('client reconnect !!!');
 
+        }).on('disconnect', request => {
+            console.info('client disconnect !!!');
+            this.emit('disconnect', request);
         });
 
         let opt = {
@@ -212,17 +216,11 @@ class Index extends Events{
 
     };
 
-    disconnect(request) {
-        if(!request.seatindex())return request.close();
-        console.info(request.seatindex() + ' client disconnect !!!');
-        this.userquit(request);
-    };
-
     exit() {
     };
 
     get(name){
-        this._game.get(name);
+        return this._game.get(name);
     }
 }
 
