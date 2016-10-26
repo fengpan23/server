@@ -34,8 +34,9 @@ class Index extends Events{
             console.info('client reconnect !!!');
 
         }).on('disconnect', id => {
-            console.info('client disconnect !!!');
-            this.emit('disconnect');
+            if(this.players.delete(id)){
+                this.emit('disconnect', id);
+            }
         });
 
         let opt = {
