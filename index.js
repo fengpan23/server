@@ -23,8 +23,7 @@ class Index extends Events{
 
         this._engine = new Engine();
         this._engine.on('request', request => {     //request.content => json {event: String, data: Obj}
-            let cc = new Request(request);
-            console.log('cc', cc);
+            console.log('cc', Object.assign(new Request(), request));
             // if(options.api){
             //     let api = options.api[request.getParams('event')];
             //     api ? Common.invokeCallback(options.api, api, request) : request.close('unknown_action');
@@ -34,9 +33,9 @@ class Index extends Events{
         }).on('reconnect', request => {
             console.info('client reconnect !!!');
 
-        }).on('disconnect', request => {
+        }).on('disconnect', id => {
             console.info('client disconnect !!!');
-            this.emit('disconnect', request);
+            this.emit('disconnect');
         });
 
         let opt = {
@@ -177,6 +176,7 @@ class Index extends Events{
         return this._game.login(session).then(player => {
             request.set({player: player});      //login success keep player alive on client
 
+
             return Promise.resolve(player);
         }).catch(e => {
             return Promise.reject(e);
@@ -186,19 +186,19 @@ class Index extends Events{
     /**
      * player have seat
      * @param request
+     * @param seatIndex
      * @returns {Promise}
      */
-    seat(request) {
+    seat(player, seatIndex) {
         if (this.status)
             return Promise.reject("engine is closed on engine.seat");
 
-        let player = request.get('player');
         if (player.get('status') !== 'login')
             return Promise.reject('player seat error on engine.seat, player status: ' + player.get('status'));
 
-        return this._game.seat(player, request.getParams('content.seatindex')).then(p => {
+        return this._game.seat(player, seatIndex).then(p => {
 
-            this.players.set(request.get('id'), p);
+            this.players.set(p.id, p);
 
             return Promise.resolve(player);
         }).catch(e => {

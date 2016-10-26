@@ -9,8 +9,11 @@ class Player {
     }
 
     init(dbc, session){
+        //TODO: if this._kiosk had id ???
+
         //TODO: remove test
         return Kiosk.get(dbc, {id: session}).then(kiosk => {
+            this.id = kiosk.id;
         // return Kiosk.get(dbc, {session: session}).then(kiosk => {
             if(kiosk){
                 if(kiosk.status !== 1)
@@ -21,6 +24,34 @@ class Player {
             return Promise.reject('unknown_session, cat not get kiosk by session on player.init');
         });
     }
+
+    // /**
+    //  * set value to client
+    //  * @param key   {String}
+    //  * @param value {*}
+    //  * @return Boolean
+    //  */
+    // set(key, value){
+    //     if(key){
+    //         if(typeof key === 'object'){
+    //             for(let k in key){
+    //                 this.set(k, key[k]);
+    //             }
+    //         }else{
+    //             this._client[key] = value;
+    //         }
+    //         return true;
+    //     }
+    //     return false;
+    // }
+    //
+    // /**
+    //  * get before set value
+    //  * @param key   {String}
+    //  */
+    // get(key){
+    //     return this._client[key];
+    // }
 
     set(key, value){
         this[key] = value;
