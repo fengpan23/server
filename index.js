@@ -3,6 +3,7 @@
  */
 
 const _ = require('underscore');
+const Common = require('common');
 const Events = require('events');
 
 const Log = require('log')({env: 'develop', singleton: true});   //create singleton log
@@ -10,7 +11,6 @@ const Engine = require('engine');
 
 const Game = require('./module/game');
 const Config = require('./module/config');
-const Request = require('./module/request');
 
 class Index extends Events{
     /**
@@ -22,28 +22,14 @@ class Index extends Events{
         this._config = new Config();            //create config file module
 
         this._engine = new Engine();
-        this._engine.on('request', request => {     //request.content => json {event: String, data: Obj}
-            Object.assign({}, this.players.get(request.getClientId()), request);
-            // if(options.api){
-            //     let api = options.api[request.getParams('event')];
-            //     api ? Common.invokeCallback(options.api, api, request) : request.close('unknown_action');
-            // }else{
-            //     this.emit('request', request);
-            // }
-        }).on('reconnect', request => {
+        this._engine.on('request', this._createBindFunc(options).bind(this)).on('reconnect', request => {
             console.info('client reconnect !!!');
-
         }).on('disconnect', id => {
-            if(this.players.delete(id)){
+            if(this.players.delete(id))
                 this.emit('disconnect', id);
-            }
         });
 
-        let opt = {
-            nodes: this._config.get('db.nodes'),
-            cluster: this._config.get('cluster')
-        };
-        this._game = new Game(opt);
+        this._game = new Game({nodes: this._config.get('db.nodes'), cluster: this._config.get('cluster')});
         this._game.init(_.pick(options, 'tableId')).then(() => {
             this._engine.start(_.pick(options, 'port', 'ip'));      //port and ip to create socket server  default port:2323, ip:localhost
         }).catch(e => {
@@ -52,6 +38,21 @@ class Index extends Events{
 
         this.players = new Map();   //join game players
     };
+
+    _createBindFunc(options){
+        if(options.api){
+            return function(request){       //request.content => json {event: String, data: Obj}
+                let clientId = request.getClientId();
+                let player = this.players.get(clientId) || this._game.get(clientId);
+                let api = options.api[request.getParams('event')];
+                api ? Common.invokeCallback(options.api, api, request, player) : request.close('unknown_action');
+            }
+        }else{
+            return function(request){
+                this.emit('request', request);
+            }
+        }
+    }
 
     open(){
         if (this._game.id)       // 校验 ‘游戏是否正在暂停’ ||  ‘游戏是否已开场’
@@ -165,18 +166,16 @@ class Index extends Events{
 
     /**
      * player login game
-     * @param request
+     * @param options   {object}
+     *          session: String
+     *          clientId: String
      * @returns {Promise}
      */
-    login(request){
+    login(options){
         if (this.closed)
             return Promise.reject("engine is closed on engine.init");
 
-        let session = request.getParams('content.session');
-
-        return this._game.login(session).then(player => {
-            this.players.set(request.getClientId(), player);     //login success keep player alive on client
-
+        return this._game.login(options).then(player => {
             return Promise.resolve(player);
         }).catch(e => {
             return Promise.reject(e);
@@ -185,7 +184,7 @@ class Index extends Events{
 
     /**
      * player have seat
-     * @param request
+     * @param player
      * @param seatIndex
      * @returns {Promise}
      */
@@ -196,9 +195,9 @@ class Index extends Events{
         if (player.get('status') !== 'login')
             return Promise.reject('player seat error on engine.seat, player status: ' + player.get('status'));
 
-        return this._game.seat(player, seatIndex).then(p => {
+        return this._game.seat(player, seatIndex).then(() => {
 
-            this.players.set(p.id, p);
+            this.players.set(player.clientId, player);
 
             return Promise.resolve(player);
         }).catch(e => {

@@ -5,7 +5,8 @@
 const Kiosk = require('../model/kiosk');
 
 class Player {
-    constructor() {
+    constructor(clientId) {
+        this.clientId = clientId;
     }
 
     init(dbc, session){

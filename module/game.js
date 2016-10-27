@@ -26,9 +26,15 @@ class G{
         this._profile = {};
 
         this._db = new DB(_.pick(options, 'cluster', 'nodes'));
+
+        this._cachePlayer = new Map();
     }
 
-    get(name){
+    get(name, key){
+        switch (name){
+            case 'player':
+                return this._cachePlayer.get(key);
+        }
         return this['_' + name];
     }
 
@@ -154,15 +160,17 @@ class G{
 
     /**
      * verify player
-     * @param session
+     * @param opt   {object}
+     *          session: String
+     *          clientId: String
      * @returns {Promise.<T>}
      */
-    login(session){
+    login(opt){
         return this._db.begin().then(dbc =>
             new Promise((resolve, reject) => {
-                let player = new Player();
+                let player = new Player(opt.clientId);
 
-                player.init(dbc, session).then(kiosk => {
+                player.init(dbc, opt.session).then(kiosk => {
                     return Agency.get(dbc, {agencyId: kiosk.agencyid});
                 }).then(agency => {
                     let poolAgentId = agency.follow_top_agentpool === 'Y' ? (agency.top_agencyid <= 0 ? agency.id : agency.top_agencyid) : agency.id;
@@ -178,7 +186,7 @@ class G{
                         return reject('agent_suspended, there are agency suspend on game.login');
                     else
                         return this._db.over(dbc).then(() => {
-                            resolve(player)
+                            resolve(this._verify(player));
                         });
                 }).catch(e => {
                     this._db.close(dbc).then(() => reject(e)).catch(reject)
@@ -210,8 +218,9 @@ class G{
                     return Table.update(dbc, _.pick(opt, 'tableId', 'gameId'), {curkiosk: curKiosk});
                 }).then(() => {
                     return this._db.over(dbc).then(() => {
+                        player.set('index', 'index');
                         player.set('status', 'seat');
-                        resolve(player)
+                        resolve(this._verify(player));
                     });
                 }).catch(e => {
                     this._db.close(dbc).then(() => reject(e)).catch(reject)
@@ -221,6 +230,18 @@ class G{
 
             return Promise.resolve(palyer);
         }))
+    }
+
+    _verify(player){
+        switch(player.status){
+            case 'login':
+                this._cachePlayer.set(player.clientId, player);
+                break;
+            case 'seat':
+                this._cachePlayer.delete(player.clientId);
+                break;
+        }
+        return player;
     }
 }
 
