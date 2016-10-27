@@ -166,15 +166,17 @@ class Index extends Events{
 
     /**
      * player login game
-     * @param options   {object}
-     *          session: String
-     *          clientId: String
+     * @param request   {object}
      * @returns {Promise}
      */
-    login(options){
+    login(request){
         if (this.closed)
             return Promise.reject("engine is closed on engine.init");
 
+        let options = {
+            session: request.getParams('content.session'),
+            clientId: request.getClientId()
+        };
         return this._game.login(options).then(player => {
             return Promise.resolve(player);
         }).catch(e => {

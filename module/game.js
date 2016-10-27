@@ -106,8 +106,7 @@ class G{
             // this._seats = res._seats;
             // return Promise.resolve({ip: '', port: ''});
         }).catch(e => {
-            Log.error(e.stack);
-            return Promise.reject()
+            return Promise.reject(e);
         });
     }
 
