@@ -23,7 +23,7 @@ class Index extends Events{
 
         this._engine = new Engine();
         this._engine.on('request', request => {     //request.content => json {event: String, data: Obj}
-            console.log('cc', Object.assign(new Request(), request));
+            Object.assign({}, this.players.get(request.getClientId()), request);
             // if(options.api){
             //     let api = options.api[request.getParams('event')];
             //     api ? Common.invokeCallback(options.api, api, request) : request.close('unknown_action');
@@ -174,8 +174,7 @@ class Index extends Events{
         let session = request.getParams('content.session');
 
         return this._game.login(session).then(player => {
-            request.set({player: player});      //login success keep player alive on client
-
+            this.players.set(request.getClientId(), player);     //login success keep player alive on client
 
             return Promise.resolve(player);
         }).catch(e => {

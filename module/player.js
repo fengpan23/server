@@ -14,6 +14,7 @@ class Player {
         //TODO: remove test
         return Kiosk.get(dbc, {id: session}).then(kiosk => {
             this.id = kiosk.id;
+            this.status = 'login';
         // return Kiosk.get(dbc, {session: session}).then(kiosk => {
             if(kiosk){
                 if(kiosk.status !== 1)

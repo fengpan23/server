@@ -178,7 +178,6 @@ class G{
                         return reject('agent_suspended, there are agency suspend on game.login');
                     else
                         return this._db.over(dbc).then(() => {
-                            player.set('status', 'login');
                             resolve(player)
                         });
                 }).catch(e => {
