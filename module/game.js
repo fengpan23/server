@@ -27,7 +27,7 @@ class G{
 
         this._db = new DB(_.pick(options, 'cluster', 'nodes'));
 
-        this._cachePlayer = new Map();
+        this._cachePlayer = new Map();  //登陆未坐下的玩家， 玩家登陆后，移除
     }
 
     get(name, key){

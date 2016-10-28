@@ -27,6 +27,7 @@ class Index extends Events{
         }).on('disconnect', id => {
             if(this.players.delete(id))
                 this.emit('disconnect', id);
+            // this._game.
         });
 
         this._game = new Game({nodes: this._config.get('db.nodes'), cluster: this._config.get('cluster')});
@@ -36,14 +37,14 @@ class Index extends Events{
             Log.error('Game init error server.game.init: ', e);
         });
 
-        this.players = new Map();   //join game players
+        this.players = new Map();   //save the player who had seat (存已经坐下的玩家)
     };
 
     _createBindFunc(options){
         if(options.api){
             return function(request){       //request.content => json {event: String, data: Obj}
                 let clientId = request.getClientId();
-                let player = this.players.get(clientId) || this._game.get(clientId);
+                let player = this.players.get(clientId) || this._game.get('player', clientId);
                 let api = options.api[request.getParams('event')];
                 api ? Common.invokeCallback(options.api, api, request, player) : request.close('unknown_action');
             }
@@ -194,13 +195,12 @@ class Index extends Events{
         if (this.status)
             return Promise.reject("engine is closed on engine.seat");
 
-        if (player.get('status') !== 'login')
-            return Promise.reject('player seat error on engine.seat, player status: ' + player.get('status'));
+        if (player.status !== 'login')
+            return Promise.reject('player seat error on engine.seat, player status: ' + player.status);
 
         return this._game.seat(player, seatIndex).then(() => {
 
             this.players.set(player.clientId, player);
-
             return Promise.resolve(player);
         }).catch(e => {
             return Promise.reject(e);
@@ -233,19 +233,21 @@ if (require.main !== module) return;
 "use strict";
 let server = new Index({tableId: 211, api: {
     init: function (request) {
-        server.login(request).then(s => {
-            console.log('username: ', s.getUsername());
-
-
-            server.seat(request).then(s => {
-                console.log('seat: ', s.getUsername());
-
-            }).catch(e => {
-                console.error(e);
-            })
+        server.login(request).then(p => {
+            console.log('init: ', p.get('username'));
+            request.response('game', {username: p.get('username')});
+            request.close();
         }).catch(e => {
             console.error(e);
         })
-
+    },
+    seat: function (request, player) {
+        server.seat(player).then(p => {
+            console.log('seat: ', p.get('username'));
+            request.response('game', {seatIndex: p.get('index')});
+            request.close();
+        }).catch(e => {
+            console.error(e);
+        })
     }
 }});
