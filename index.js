@@ -49,8 +49,9 @@ class Index extends Events{
             return function(request){       //request.content => json {event: String, data: Obj}
                 let clientId = request.getClientId();
                 let player = this.players.get(clientId) || this._game.get('player', clientId);
-                let api = options.api[request.getParams('event')];
-                api ? Common.invokeCallback(options.api, api, request, player) : request.close('unknown_action');
+                let action = request.getParams('event');
+                let api = options.api[action];
+                api ? Common.invokeCallback(options.api, api, request, player) : request.close('unknown_action: ' + action);
             }
         }else{
             return function(request){
