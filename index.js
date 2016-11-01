@@ -61,6 +61,48 @@ class Index extends Events{
     }
 
     /**
+     * player login game
+     * @param request   {object}
+     * @returns {Promise}
+     */
+    login(request){
+        if (this.closed)
+            return Promise.reject("engine is closed on engine.init");
+
+        let options = {
+            session: request.getParams('content.session'),
+            clientId: request.getClientId()
+        };
+        return this._game.login(options).then(player => {
+            return Promise.resolve(player);
+        }).catch(e => {
+            return Promise.reject(e);
+        });
+    };
+
+    /**
+     * player have seat
+     * @param player
+     * @param seatIndex
+     * @returns {Promise}
+     */
+    seat(player, seatIndex) {
+        if (this.status)
+            return Promise.reject("engine is closed on engine.seat");
+
+        if (player.status !== 'login')
+            return Promise.reject('player seat error on engine.seat, player status: ' + player.status);
+
+        return this._game.seat(player, seatIndex).then(() => {
+
+            this.players.set(player.clientId, player);
+            return Promise.resolve(player);
+        }).catch(e => {
+            return Promise.reject(e);
+        });
+    };
+
+    /**
      * start game
      * @returns {*}
      */
@@ -173,48 +215,6 @@ class Index extends Events{
             });
         });
     }
-
-    /**
-     * player login game
-     * @param request   {object}
-     * @returns {Promise}
-     */
-    login(request){
-        if (this.closed)
-            return Promise.reject("engine is closed on engine.init");
-
-        let options = {
-            session: request.getParams('content.session'),
-            clientId: request.getClientId()
-        };
-        return this._game.login(options).then(player => {
-            return Promise.resolve(player);
-        }).catch(e => {
-            return Promise.reject(e);
-        });
-    };
-
-    /**
-     * player have seat
-     * @param player
-     * @param seatIndex
-     * @returns {Promise}
-     */
-    seat(player, seatIndex) {
-        if (this.status)
-            return Promise.reject("engine is closed on engine.seat");
-
-        if (player.status !== 'login')
-            return Promise.reject('player seat error on engine.seat, player status: ' + player.status);
-
-        return this._game.seat(player, seatIndex).then(() => {
-
-            this.players.set(player.clientId, player);
-            return Promise.resolve(player);
-        }).catch(e => {
-            return Promise.reject(e);
-        });
-    };
 
     win(request) {
 

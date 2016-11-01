@@ -1,7 +1,6 @@
 /**
  * Created by fengpan on 2016/10/22.
  */
-
 const Kiosk = require('../model/kiosk');
 
 class Player {

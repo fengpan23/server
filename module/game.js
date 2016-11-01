@@ -199,6 +199,7 @@ class G{
      * @return {Promise.<TResult>}
      */
     seat(player, index){
+        player.set('status', 'seating');
         return this._db.begin().then(dbc =>
             new Promise((resolve, reject) => {
                 let opt = {
