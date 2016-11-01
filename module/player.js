@@ -11,7 +11,6 @@ class Player {
 
     init(dbc, session){
         //TODO: if this._kiosk had id ???
-
         return Kiosk.get(dbc, {session: session}).then(kiosk => {
             this.status = 'login';
             if(kiosk){

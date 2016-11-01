@@ -9,6 +9,7 @@ const Events = require('events');
 const Log = require('log')({env: 'develop', singleton: true});   //create singleton log
 const Engine = require('engine');
 
+const API = require('./module/api');
 const Game = require('./module/game');
 const Config = require('./module/config');
 
@@ -19,6 +20,7 @@ class Index extends Events{
      */
     constructor(options) {
         super();
+        this._api = new API();
         this._config = new Config();            //create config file module
 
         this._engine = new Engine();
@@ -33,6 +35,8 @@ class Index extends Events{
         this._game = new Game({nodes: this._config.get('db.nodes'), cluster: this._config.get('cluster')});
         this._game.init(_.pick(options, 'tableId')).then(res => {
             this._engine.start(_.pick(res, 'port', 'ip'));      //port and ip to create socket server  default port:2323, ip:localhost
+
+            this._api.start(res.port - 10000 || 10000);
         }).catch(e => {
             Log.error('Game init error server.game.init: ', e);
         });
