@@ -6,7 +6,6 @@ const http = require('http');
 const url = require('url');
 const queryString = require('querystring');
 
-const backend = require('./backend.js');
 const privatekey = '829c3804401b0727f70f73d4415e162400cbe57b';
 
 function _result(error, msg) {
