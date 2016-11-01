@@ -12,10 +12,8 @@ class Player {
     init(dbc, session){
         //TODO: if this._kiosk had id ???
 
-        //TODO: remove test
-        return Kiosk.get(dbc, {id: session}).then(kiosk => {
+        return Kiosk.get(dbc, {session: session}).then(kiosk => {
             this.status = 'login';
-        // return Kiosk.get(dbc, {session: session}).then(kiosk => {
             if(kiosk){
                 if(kiosk.status !== 1)
                     return Promise.reject('invalid_user, kiosk is not active on player.init');

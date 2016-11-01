@@ -102,9 +102,7 @@ class G{
                 })
         ).then(res => {
             // console.log('res', res);
-            // this._table = res.table;
-            // this._seats = res._seats;
-            // return Promise.resolve({ip: '', port: ''});
+            return Promise.resolve(_.pick(this._table, 'ip', 'port'));
         }).catch(e => {
             return Promise.reject(e);
         });
@@ -225,9 +223,8 @@ class G{
                     this._db.close(dbc).then(() => reject(e)).catch(reject)
                 });
             }
-        ).then(palyer => {
-
-            return Promise.resolve(palyer);
+        ).then(p => {
+            return Promise.resolve(p);
         }))
     }
 

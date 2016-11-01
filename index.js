@@ -31,8 +31,8 @@ class Index extends Events{
         });
 
         this._game = new Game({nodes: this._config.get('db.nodes'), cluster: this._config.get('cluster')});
-        this._game.init(_.pick(options, 'tableId')).then(() => {
-            this._engine.start(_.pick(options, 'port', 'ip'));      //port and ip to create socket server  default port:2323, ip:localhost
+        this._game.init(_.pick(options, 'tableId')).then(res => {
+            this._engine.start(_.pick(res, 'port', 'ip'));      //port and ip to create socket server  default port:2323, ip:localhost
         }).catch(e => {
             Log.error('Game init error server.game.init: ', e);
         });
@@ -55,6 +55,10 @@ class Index extends Events{
         }
     }
 
+    /**
+     * start game
+     * @returns {*}
+     */
     open(){
         if (this._game.id)       // 校验 ‘游戏是否正在暂停’ ||  ‘游戏是否已开场’
             return Promise.reject("match is already opened on engine.open");
@@ -231,7 +235,7 @@ module.exports = Index;
 //test
 if (require.main !== module) return;
 "use strict";
-let server = new Index({tableId: 211, api: {
+let server = new Index({tableId: 220, api: {
     init: function (request) {
         server.login(request).then(p => {
             console.log('init: ', p.get('username'));
