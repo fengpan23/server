@@ -6,6 +6,7 @@ const Kiosk = require('../model/kiosk');
 class Player {
     constructor(clientId) {
         this.clientId = clientId;
+        this.status = 'init';
     }
 
     init(dbc, session){
@@ -67,6 +68,10 @@ class Player {
                 break;
         }
         return this['_' + key];
+    }
+
+    lock(){
+        this.status = 'operating';
     }
 }
 

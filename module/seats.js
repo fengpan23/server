@@ -83,7 +83,7 @@ class Seats {
             for (let v of this._seats.values())
                 if(v !== 'empty')cur++;
 
-            return Promise.resolve(cur);
+            return Promise.resolve({index: seatIndex, cur: cur});
         });
     }
 }

@@ -16,7 +16,6 @@ const Setting = require('../model/setting');
 
 const DB = require('./db');
 const Seats = require('./seats');
-const Player = require('./player');
 
 class G{
     constructor(options){
@@ -26,8 +25,6 @@ class G{
         this._profile = {};
 
         this._db = new DB(_.pick(options, 'cluster', 'nodes'));
-
-        this._cachePlayer = new Map();  //登陆未坐下的玩家， 玩家登陆后，移除
     }
 
     get(name, key){
@@ -157,16 +154,18 @@ class G{
 
     /**
      * verify player
+     * @param player  {Player}
      * @param opt   {object}
      *          session: String
      *          clientId: String
      * @returns {Promise.<T>}
      */
-    login(opt){
+    login(player, opt){
+        if(player.get('status') !== 'init')
+            return Promise.reject(`player status ${player.status} error on game.login`);
+
         return this._db.begin().then(dbc =>
             new Promise((resolve, reject) => {
-                let player = new Player(opt.clientId);
-
                 player.init(dbc, opt.session).then(kiosk => {
                     return Agency.get(dbc, {agencyId: kiosk.agencyid});
                 }).then(agency => {
@@ -177,13 +176,13 @@ class G{
                         structure.push(agency.id);
                         return AgencySuspend.getCount(dbc, structure);
                     } else
-                        return reject('agency is not active on game.login');
+                        reject('agency is not active on game.login');
                 }).then(count => {
                     if (count > 0)
-                        return reject('agent_suspended, there are agency suspend on game.login');
+                        reject('agent_suspended, there are agency suspend on game.login');
                     else
                         return this._db.over(dbc).then(() => {
-                            resolve(this._verify(player));
+                            resolve(player);
                         });
                 }).catch(e => {
                     this._db.close(dbc).then(() => reject(e)).catch(reject)
@@ -199,7 +198,9 @@ class G{
      * @return {Promise.<TResult>}
      */
     seat(player, index){
-        player.set('status', 'seating');
+        if(player.status !== 'login')
+            return Promise.reject(`player status ${player.status} error on game.seat`);
+
         return this._db.begin().then(dbc =>
             new Promise((resolve, reject) => {
                 let opt = {
@@ -210,15 +211,12 @@ class G{
                     ip: 12,
                     port: 123
                 };
-                this._seats.choose(dbc, opt).then(curKiosk => {
-                    console.log('curkiosk: ', curKiosk);
-
-                    return Table.update(dbc, _.pick(opt, 'tableId', 'gameId'), {curkiosk: curKiosk});
+                this._seats.choose(dbc, opt).then(res => {
+                    player.set('index', res.index);
+                    return Table.update(dbc, _.pick(opt, 'tableId', 'gameId'), {curkiosk: res.cur});
                 }).then(() => {
                     return this._db.over(dbc).then(() => {
-                        player.set('index', 'index');
-                        player.set('status', 'seat');
-                        resolve(this._verify(player));
+                        resolve(player);
                     });
                 }).catch(e => {
                     this._db.close(dbc).then(() => reject(e)).catch(reject)
@@ -227,18 +225,6 @@ class G{
         ).then(p => {
             return Promise.resolve(p);
         }))
-    }
-
-    _verify(player){
-        switch(player.status){
-            case 'login':
-                this._cachePlayer.set(player.clientId, player);
-                break;
-            case 'seat':
-                this._cachePlayer.delete(player.clientId);
-                break;
-        }
-        return player;
     }
 }
 

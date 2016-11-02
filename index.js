@@ -12,6 +12,7 @@ const Engine = require('engine');
 const API = require('./module/api');
 const Game = require('./module/game');
 const Config = require('./module/config');
+const Player = require('./module/player');
 
 class Index extends Events{
     /**
@@ -41,14 +42,18 @@ class Index extends Events{
             Log.error('Game init error server.game.init: ', e);
         });
 
-        this.players = new Map();   //save the player who had seat (存已经坐下的玩家)
+        this.players = new Map();
     };
 
     _createBindFunc(options){
         if(options.api){
             return function(request){       //request.content => json {event: String, data: Obj}
                 let clientId = request.getClientId();
-                let player = this.players.get(clientId) || this._game.get('player', clientId);
+                let player = this.players.has(clientId);
+                if(!player){
+                    player = new Player(clientId);
+                    this.players.set(clientId, player);
+                }
                 let action = request.getParams('event');
                 let api = options.api[action];
                 api ? Common.invokeCallback(options.api, api, request, player) : request.close('unknown_action: ' + action);
@@ -69,11 +74,12 @@ class Index extends Events{
         if (this.closed)
             return Promise.reject("engine is closed on engine.init");
 
-        let options = {
+        let opt = {
             session: request.getParams('content.session'),
             clientId: request.getClientId()
         };
-        return this._game.login(options).then(player => {
+        let player = this.players.get(opt.clientId);
+        return this._game.login(player, opt).then(player => {
             return Promise.resolve(player);
         }).catch(e => {
             return Promise.reject(e);
