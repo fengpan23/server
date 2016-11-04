@@ -73,6 +73,10 @@ class Player {
     lock(){
         this.status = 'operating';
     }
+
+    unlock(){
+
+    }
 }
 
 module.exports = Player;

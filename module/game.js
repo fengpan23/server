@@ -27,12 +27,17 @@ class G{
         this._db = new DB(_.pick(options, 'cluster', 'nodes'));
     }
 
-    get(name, key){
-        switch (name){
-            case 'player':
-                return this._cachePlayer.get(key);
-        }
-        return this['_' + name];
+    get id(){
+        return this._id;
+    }
+    get table(){
+        return Object.assign({}, this._table);
+    }
+    get seats(){
+        return Object.assign({}, this._seats);
+    }
+    get profile(){
+        return Object.assign({}, this._profile);
     }
 
     init(opt){

@@ -48,11 +48,10 @@ class Index extends Events{
     _createBindFunc(options){
         if(options.api){
             return function(request){       //request.content => json {event: String, data: Obj}
-                let clientId = request.getClientId();
-                let player = this.players.has(clientId);
+                let player = this.players.has(request.clientId);
                 if(!player){
-                    player = new Player(clientId);
-                    this.players.set(clientId, player);
+                    player = new Player(request.clientId);
+                    this.players.set(request.clientId, player);
                 }
                 let action = request.getParams('event');
                 let api = options.api[action];
@@ -76,12 +75,16 @@ class Index extends Events{
 
         let opt = {
             session: request.getParams('content.session'),
-            clientId: request.getClientId()
+            clientId: request.clientId
         };
         let player = this.players.get(opt.clientId);
-        return this._game.login(player, opt).then(player => {
-            return Promise.resolve(player);
+        player.lock();
+
+        return this._game.login(player, opt).then(pla => {
+            player.unlock();
+            return Promise.resolve(pla);
         }).catch(e => {
+            player.unlock();
             return Promise.reject(e);
         });
     };
@@ -245,7 +248,7 @@ class Index extends Events{
 module.exports = Index;
 //test
 if (require.main !== module) return;
-"use strict";
+
 let server = new Index({tableId: 220, api: {
     init: function (request) {
         server.login(request).then(p => {
