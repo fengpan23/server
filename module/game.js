@@ -166,7 +166,7 @@ class G{
      * @returns {Promise.<T>}
      */
     login(player, opt){
-        if(player.status !== 'init')
+        if(player.status !== 'new')
             return Promise.reject(`player status ${player.status} error on game.login`);
 
         return this._db.begin().then(dbc =>
@@ -203,7 +203,7 @@ class G{
      * @return {Promise.<TResult>}
      */
     seat(player, index){
-        if(player.status !== 'login')
+        if(player.status !== 'init')
             return Promise.reject(`player status ${player.status} error on game.seat`);
 
         return this._db.begin().then(dbc =>
