@@ -3,14 +3,14 @@
  */
 const _ = require('underscore');
 const Kiosk = require('../model/kiosk');
-const STATUS = {init: 1, login: 3, seat: 5};
+const STATUS = {new: 0, init: 1, login: 3, seat: 5};
 
 class Player {
     constructor(clientId) {
         this.clientId = clientId;
 
         this._actions = new Set();
-        this._status = 'init';
+        this._status = 'new';
     }
 
     get status(){
@@ -106,8 +106,8 @@ class Player {
     }
 
     verify(action){
-        if(STATUS[action] <= STATUS[this.status])
-            return Promise.reject(`verify action: ${action} error, player status: ${this.status}`);
+        if(STATUS[action] && STATUS[action] <= STATUS[this._status])
+            return Promise.reject(`verify player action: ${action} error, player status is: ${this._status}`);
         return  Promise.resolve();
     }
 }
