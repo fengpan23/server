@@ -1,6 +1,7 @@
 /**
  * Created by fengpan on 2016/10/22.
  */
+const _ = require('underscore');
 const Kiosk = require('../model/kiosk');
 const STATUS = {init: 1, seat: 3};
 
@@ -60,14 +61,18 @@ class Player {
     }
 
     get(key){
+        if(_.isEmpty(this._kiosk))
+            return new Error('player not init');
+        let result;
         switch (key){
             case 'username':
-                return this._kiosk.username;
+                result = this._kiosk.username;
+                break;
             case 'kiosk':
-                return this._kiosk;
+                result = Object.assign({}, this._kiosk);
                 break;
             case 'point':
-                return this._kiosk['balance_a'];
+                result = this._kiosk['balance_a'];
                 break;
         }
         return this['_' + key];
