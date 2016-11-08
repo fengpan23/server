@@ -19,23 +19,20 @@ class Index extends Server{
      * @returns {Promise}
      */
     login(request){
-        if (this.closed)
-            return Promise.reject("engine is closed on engine.init");
-
         let opt = {
             session: request.getParams('content.session'),
             clientId: request.clientId
         };
         let player = this.players.get(opt.clientId);
-        player.lock();
 
-        return this._game.login(player, opt).then(pla => {
-            player.unlock();
-            return Promise.resolve(pla);
-        }).catch(e => {
-            player.unlock();
-            return Promise.reject(e);
-        });
+        return this._lock(player, 'login').then(() =>
+            this._game.login(player, opt).then(pla => {
+                return this._unlock(pla, 'login');
+            }).catch(e => {
+                this._unlock(player, 'login');
+                return Promise.reject(e);
+            })
+        );
     };
 
     /**
@@ -45,18 +42,16 @@ class Index extends Server{
      * @returns {Promise}
      */
     seat(player, seatIndex) {
-        if (this.status)
-            return Promise.reject("engine is closed on engine.seat");
+        return this._lock(player, 'seat').then(() =>
+            this._game.seat(player, seatIndex).then(() => {
+                this.players.set(player.clientId, player);
 
-        if (player.status !== 'login')
-            return Promise.reject('player seat error on engine.seat, player status: ' + player.status);
-
-        return this._game.seat(player, seatIndex).then(() => {
-            this.players.set(player.clientId, player);
-            return Promise.resolve(player);
-        }).catch(e => {
-            return Promise.reject(e);
-        });
+                return this._unlock(player, 'seat');
+            }).catch(e => {
+                this._unlock(player, 'seat');
+                return Promise.reject(e);
+            })
+        );
     };
 
     /**
@@ -190,6 +185,33 @@ class Index extends Server{
 
     get(name){
         return this._game.get(name);
+    }
+
+    /**
+     * lock player
+     * @param player
+     * @param action
+     * @returns {*}
+     * @private
+     */
+    _lock(player, action){
+        if(this.closed){
+            return Promise.reject('server is closed !');
+        }
+
+        return player.verify(action).then(() => {
+            return player.lock(action);
+        });
+    }
+
+    /**
+     * unlock player operate
+     * @param player
+     * @param action    unlock action
+     * @private
+     */
+    _unlock(player, action){
+        return player.unlock(action);
     }
 }
 

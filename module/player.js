@@ -2,10 +2,13 @@
  * Created by fengpan on 2016/10/22.
  */
 const Kiosk = require('../model/kiosk');
+const STATUS = {init: 1, seat: 3};
 
 class Player {
     constructor(clientId) {
         this.clientId = clientId;
+
+        this.actions = new Set();
         this.status = 'init';
     }
 
@@ -70,12 +73,33 @@ class Player {
         return this['_' + key];
     }
 
-    lock(){
-        this.status = 'operating';
+    /**
+     * lock player action
+     * @param action
+     * @returns {*}
+     */
+    lock(action){
+        if(this.actions.has(action)){
+            return Promise.reject('player is operating: ' + action);
+        }
+        this.actions.add(action);
+        return Promise.resolve();
     }
 
-    unlock(){
+    /**
+     * unlock player operate
+     * @param action        unlock action
+     * @returns {Promise.<T>}
+     */
+    unlock(action){
+        this.actions.delete(action);
+        return Promise.resolve(this);
+    }
 
+    verify(action){
+        if(STATUS[action] <= STATUS[this.status])
+            return Promise.reject(`verify action: ${action} error, player status: ${this.status}`);
+        return  Promise.resolve();
     }
 }
 

@@ -35,7 +35,7 @@ class Server extends Events {
 
         this._game = new Game({nodes: this._config.get('db.nodes'), cluster: this._config.get('cluster')});
         this._game.init(_.pick(options, 'tableId')).then(res => {
-            this._engine.start(_.pick(res, 'port', 'ip'));      //port and ip to create socket server  default port:2323, ip:localhost
+            this._engine.start(_.extend({type: 'net'},  _.pick(res, 'port', 'ip')));      //port and ip to create socket server  default port:2323, ip:localhost
 
             this._api.start(res.port - 10000 || 10000);
         }).catch(e => {
@@ -59,8 +59,12 @@ class Server extends Events {
                     this._players.set(clientId, player);
                 }
                 let action = request.getParams('event');
-                let api = options.api[action];
-                api ? Common.invokeCallback(options.api, api, request, player) : request.close('unknown_action: ' + action);
+                if(player.verify(action)) {
+                    let api = options.api[action];
+                    api ? Common.invokeCallback(options.api, api, request, player) : request.close('unknown_action: ' + action);
+                }else{
+                    request.close('can_not_pass_verify_action: ' + action);
+                }
             }
         } else {
             return function (request) {

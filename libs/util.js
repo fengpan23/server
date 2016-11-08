@@ -7,7 +7,7 @@ class Util {
 
     }
 
-    format(sub, input) {
+    static format(sub, input) {
         let results = {};
         let start = typeof sub === 'number' ? sub : sub.length + 1;
         for(let key in input){
