@@ -3,21 +3,25 @@
  */
 const _ = require('underscore');
 const Kiosk = require('../model/kiosk');
-const STATUS = {init: 1, seat: 3};
+const STATUS = {init: 1, login: 3, seat: 5};
 
 class Player {
     constructor(clientId) {
         this.clientId = clientId;
 
-        this.actions = new Set();
-        this.status = 'init';
+        this._actions = new Set();
+        this._status = 'init';
+    }
+
+    get status(){
+        return this._status;
     }
 
     init(dbc, session){
         //TODO: if this._kiosk had id ???
         // return Kiosk.get(dbc, {session: session}).then(kiosk => {
         return Kiosk.get(dbc, {id: 205}).then(kiosk => {
-            this.status = 'login';
+            this._status = 'login';
             if(kiosk){
                 if(kiosk.status !== 1)
                     return Promise.reject('invalid_user, kiosk is not active on player.init');
@@ -84,10 +88,10 @@ class Player {
      * @returns {*}
      */
     lock(action){
-        if(this.actions.has(action)){
+        if(this._actions.has(action)){
             return Promise.reject('player is operating: ' + action);
         }
-        this.actions.add(action);
+        this._actions.add(action);
         return Promise.resolve();
     }
 
@@ -97,7 +101,7 @@ class Player {
      * @returns {Promise.<T>}
      */
     unlock(action){
-        this.actions.delete(action);
+        this._actions.delete(action);
         return Promise.resolve(this);
     }
 

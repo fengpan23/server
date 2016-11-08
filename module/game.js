@@ -166,7 +166,7 @@ class G{
      * @returns {Promise.<T>}
      */
     login(player, opt){
-        if(player.get('status') !== 'init')
+        if(player.status !== 'init')
             return Promise.reject(`player status ${player.status} error on game.login`);
 
         return this._db.begin().then(dbc =>
