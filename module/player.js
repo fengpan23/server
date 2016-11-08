@@ -79,7 +79,7 @@ class Player {
                 result = this._kiosk['balance_a'];
                 break;
         }
-        return this['_' + key];
+        return result || this['_' + key];
     }
 
     /**
