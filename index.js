@@ -184,7 +184,7 @@ class Index extends Server{
     };
 
     get(name){
-        return this._game.get(name);
+        return this._game[name];
     }
 
     /**
