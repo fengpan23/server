@@ -52,11 +52,10 @@ class Server extends Events {
     _createBindFunc(options) {
         if (options.api) {
             return function (request) {       //request.content => json {event: String, data: Obj}
-                let clientId = request.getClientId();
-                let player = this.players.has(clientId);
+                let player = this.players.get(request.clientId);
                 if (!player) {
-                    player = new Player(clientId);
-                    this._players.set(clientId, player);
+                    player = new Player(request.clientId);
+                    this._players.set(request.clientId, player);
                 }
                 let action = request.getParams('event');
                 if(player.verify(action)) {
