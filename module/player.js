@@ -15,6 +15,9 @@ class Player {
     get id(){
         return this._kiosk.id
     }
+    get username(){
+        return this._kiosk.username;
+    }
     get clientId(){
         return this._clientId;
     }
@@ -46,9 +49,6 @@ class Player {
             return new Error('player not init');
         let result;
         switch (key){
-            case 'username':
-                result = this._kiosk.username;
-                break;
             case 'kiosk':
                 result = Object.assign({}, this._kiosk);
                 break;

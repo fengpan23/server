@@ -9,6 +9,10 @@ class Seats {
         this._seats = new Map();
     }
 
+    has(id){
+        return this._seats.has(id);
+    }
+
     init(dbc, table, reload){
         return Seat.find(dbc, {tableId: table.id}).then(seats => {
             let all = [];
@@ -24,7 +28,7 @@ class Seats {
                     if (seat.state !== 'idle' || seat.kioskid !== null || seat.agentid !== table.agentid || seat.gameid !== table.gameid || seat.roomid !== table.roomid)
                         updateIndex.push(seat.index);
 
-                    this._seats.set(seat.index, 'empty');
+                    this._seats.set(seat.index, {status:　'empty'});
                 });
 
                 let insert = [];
@@ -35,7 +39,7 @@ class Seats {
                 for (let i = 1; i <= table.maxkiosk; i++) {
                     if (seats[i] != 'empty') {
                         insert.push([i, table.agentid, table.gameid, table.roomid, table.tableid, 'idle', null, now, now]);
-                        this._seats[i] = 'empty';
+                        this._seats.set(i, {status: 'empty'});
                     }
                 }
                 insert.length > 0 && all.push(Seat.insert(dbc, fields, insert));
@@ -59,13 +63,13 @@ class Seats {
      */
     choose(dbc, opt){
         let seatIndex;
-        if(this._seats.get(opt.index) === 'empty'){
+        if(this._seats.get(opt.index).status === 'empty'){
             seatIndex = opt.index;
-            this._seats.set(opt.index, 'occupy');
+            this._seats.set(opt.index, {status:　'occupy'});
         }else if(!opt.index || opt.adjust){
             for (let [k, v] of this._seats) {
-                if (v === 'empty') {
-                    this._seats.set(k, 'occupy');
+                if (v.status === 'empty') {
+                    this._seats.set(k, {status: 'occupy'});
                     seatIndex = +k;
                     break;
                 }
@@ -81,7 +85,7 @@ class Seats {
         return Seat.update(dbc, params, data).then(() => {
             let cur = 0;
             for (let v of this._seats.values())
-                if(v !== 'empty')cur++;
+                if(v.status !== 'empty')cur++;
 
             return Promise.resolve({index: seatIndex, cur: cur});
         });
@@ -90,10 +94,10 @@ class Seats {
     leave(dbc, opt){
         let data = {state: 'idle', kioskid: null, ip: '0.0.0.0', port: 0};
         return Seat.update(dbc, opt, data).then(() => {
-            this._seats.set(opt.seatIndex, 'empty');
+            this._seats.set(opt.seatIndex, {status: 'empty'});
             let cur = 0;
             for (let v of this._seats.values())
-                if(v !== 'empty')cur++;
+                if(v.status !== 'empty')cur++;
 
             return Promise.resolve(cur);
         });

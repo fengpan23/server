@@ -37,16 +37,16 @@ class Index extends Server{
      * @returns {Promise}
      */
     seat(player, seatIndex) {
-        return this._lock(player, 'seat').then(() =>
-            this._game.seat(player, seatIndex).then(() => {
-                this.players.set(player.clientId, player);
-
+        return this._lock(player, 'seat').then(() => {
+            let client = this._engine.getClients(player.clientId);
+            this._game.seat(player, Object.assign({index: seatIndex}, client.remote).then(index => {
+                player.set('index', index);
                 return this._unlock(player, 'seat');
             }).catch(e => {
                 this._unlock(player, 'seat');
                 return Promise.reject(e);
-            })
-        );
+            }));
+        });
     };
 
     /**

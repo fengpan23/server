@@ -21,9 +21,9 @@ class G{
     constructor(options){
         this._id = null;
         this._table = {};
-        this._seats = new Seats();
         this._profile = {};
 
+        this._seats = new Seats();
         this._db = new DB(_.pick(options, 'cluster', 'nodes'));
     }
 
@@ -32,9 +32,6 @@ class G{
     }
     get table(){
         return Object.assign({}, this._table);
-    }
-    get seats(){
-        return Object.assign({}, this._seats);
     }
     get profile(){
         return Object.assign({}, this._profile);
@@ -172,6 +169,8 @@ class G{
         return this._db.begin().then(dbc =>
             new Promise((resolve, reject) => {
                 player.init(dbc, opt.session).then(kiosk => {
+                    // if(this._seats.has(kiosk.id))return reject('player had login');
+
                     return Agency.get(dbc, {agencyId: kiosk.agencyid});
                 }).then(agency => {
                     let poolAgentId = agency.follow_top_agentpool === 'Y' ? (agency.top_agencyid <= 0 ? agency.id : agency.top_agencyid) : agency.id;
@@ -199,36 +198,35 @@ class G{
     /**
      *  player have seat
      * @param player
-     * @param index
+     * @param opt
      * @return {Promise.<TResult>}
      */
-    seat(player, index){
+    seat(player, opt){
         if(player.status !== 'init')
             return Promise.reject(`player status ${player.status} error on game.seat`);
 
         return this._db.begin().then(dbc =>
             new Promise((resolve, reject) => {
-                let opt = {
-                    index: index,
+                let options = _.extend({
                     tableId: this._table.id,
                     gameId: this._table.gameid,
-                    kioskId: player.get('kiosk.id'),
-                    ip: 12,
-                    port: 123
-                };
-                this._seats.choose(dbc, opt).then(res => {
-                    player.set('index', res.index);
-                    return Table.update(dbc, _.pick(opt, 'tableId', 'gameId'), {curkiosk: res.cur});
+                    kioskId: player.id
+                }, _.pick(opt, 'index', 'ip', 'port'));
+
+                let seatIndex = options.index;
+                this._seats.choose(dbc, options).then(res => {
+                    seatIndex = res.index;
+                    return Table.update(dbc, _.pick(options, 'tableId', 'gameId'), {curkiosk: res.cur});
                 }).then(() => {
                     return this._db.over(dbc).then(() => {
-                        resolve(player);
+                        resolve(seatIndex);
                     });
                 }).catch(e => {
                     this._db.close(dbc).then(() => reject(e)).catch(reject)
                 });
             }
-        ).then(p => {
-            return Promise.resolve(p);
+        ).then(seatIndex => {
+            return Promise.resolve(seatIndex);
         }));
     }
 
