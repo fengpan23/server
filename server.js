@@ -43,6 +43,10 @@ class Server extends Events {
         });
 
         this._players = new Map();
+
+        process.on('uncaughtException', err => {
+            console.error('server uncaughtException', err);
+        });
     };
 
     get players(){

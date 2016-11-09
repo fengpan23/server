@@ -65,7 +65,7 @@ class DB {
                 } else
                     reject(err);
             });
-        })
+        });
     }
 
     cell(connection, table, column, condition, order, offset, group, having) {
