@@ -172,7 +172,7 @@ class Index extends Server{
      * @param player
      */
     quit(player){
-        this._lock(player, 'quit').then(() =>
+        return this._lock(player, 'quit').then(() =>
             this._game.leave(player).then(() => {
                 this._players.delete(player.clientId);
 

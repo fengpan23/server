@@ -80,6 +80,15 @@ class Server extends Events {
             }
         }
     }
+
+    broadcast(event, content){
+        let data = _.extend({event: event}, content);
+        if(data.event){
+            this._engine.broadcast(data);
+        }else{
+            throw new Error('must had event param !!!');
+        }
+    }
 }
 
 module.exports = Server;
