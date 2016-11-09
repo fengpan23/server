@@ -15,18 +15,13 @@ class Index extends Server{
 
     /**
      * player login game
-     * @param request   {object}
+     * @param player   {object}
+     * @param options   {object}    {session: String}
      * @returns {Promise}
      */
-    login(request){
-        let opt = {
-            session: request.getParams('content.session'),
-            clientId: request.clientId
-        };
-        let player = this.players.get(opt.clientId);
-
+    login(player, options){
         return this._lock(player, 'login').then(() =>
-            this._game.login(player, opt).then(pla => {
+            this._game.login(player, options).then(pla => {
                 return this._unlock(pla, 'login');
             }).catch(e => {
                 this._unlock(player, 'login');
@@ -172,8 +167,37 @@ class Index extends Server{
 
     };
 
-    quit(request){
-
+    /**
+     * player quit  玩家退出游戏，返回玩家买入金额，释放座位（如果已经坐下）
+     * @param player
+     */
+    quit(player){
+        let kiosk = player.kiosk;
+        let seatIndex = player.index;
+        this._lock(player, 'quit').then(() =>
+            this._game.leave(player, this._game.table, this._players.size).then(() => {
+                console.log('this._game.id', this._game.id);
+                if (this._game.id) {
+                    // return player.leave(request, me.gameprofile, me.table, me.depositbalance.get(kiosk.kiosk_id) || 0);
+                } else {
+                    return Promise.resolve();
+                }
+            }).then(() => {
+                // if (this.options.deposit) {
+                //     request.once('afterclose', function (error) {
+                //         if (!error) me.depositbalance.delete(kiosk.kiosk_id);
+                //     });
+                //     return gamematch.refund(request.dbc, me.table, me.gameprofile, kiosk.kiosk_id);
+                // } else {
+                //     return Promise.resolve();
+                // }
+            }).then(() => {
+                return this._unlock(player, 'seat');
+            })
+        ).catch(e => {
+            this._unlock(player, 'seat');
+            return Promise.reject(e);
+        });
     };
 
     reconnect(request){

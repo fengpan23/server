@@ -229,7 +229,26 @@ class G{
             }
         ).then(p => {
             return Promise.resolve(p);
-        }))
+        }));
+    }
+
+    leave(player){
+        return this._db.begin().then(dbc =>
+            new Promise((resolve, reject) => {
+                let params = {tableId: this._table.id, gameId: this._table.gameid, kioskId: this._kiosk.id, seatIndex: player.index};
+                this._seats.leave(dbc, params).then(cur => {
+                    return Table.update(dbc, _.pick(params, 'tableId', 'gameId'), {curkiosk: cur});
+                }).then(() => {
+                    return this._db.over(dbc).then(() => {
+                        resolve(player);
+                    });
+                }).catch(e => {
+                    this._db.close(dbc).then(() => reject(e)).catch(reject);
+                });
+            })
+        ).then(p => {
+            return Promise.resolve(p);
+        });
     }
 }
 

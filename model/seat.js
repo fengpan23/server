@@ -68,9 +68,9 @@ class Seat {
     update(dbc, params, data) {
         let seat = {[TABLE + '_updated'] : +new Date()};
 
-        let d = _.pick(data, 'kioskid', 'agentid', 'gameid', 'roomid', 'state', 'ip', 'port')
+        let d = _.pick(data, 'kioskid', 'agentid', 'gameid', 'roomid', 'state', 'ip', 'port');
         for(let key in d){
-            seat[TABLE + '_' + key] = d[key];
+            seat[TABLE + '_' + key.toLowerCase()] = d[key];
         }
         return db.update(dbc, TABLE, seat, getCond(params));
     }

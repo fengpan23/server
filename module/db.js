@@ -62,8 +62,8 @@ class DB {
         return new Promise((resolve, reject) => {
             this._cluster.end(err => {
                 err ? reject(err) : resolve();
-            })
-        })
+            });
+        });
     }
 
 }

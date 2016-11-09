@@ -28,9 +28,14 @@ class Server extends Events {
         this._engine.on('request', this._createBindFunc(options).bind(this)).on('reconnect', request => {
             console.info('client reconnect !!!');
         }).on('disconnect', id => {
-            if (this.players.delete(id))
-                this.emit('disconnect', id);
-            // this._game.
+            if(this.players.has(id)){
+                let api = options.api &&  options.api.disconnect;
+                if(api){
+                    Common.invokeCallback(options.api, api, this.players.get(id));
+                }
+                // this.players.delete(id)
+                // this.emit('disconnect', id);
+            }
         });
 
         this._game = new Game({nodes: this._config.get('db.nodes'), cluster: this._config.get('cluster')});

@@ -3,7 +3,7 @@
  */
 const _ = require('underscore');
 const Kiosk = require('../model/kiosk');
-const STATUS = {new: 0, init: 1, login: 3, seat: 5};
+const STATUS = {new: 0, init: 1, login: 3, seat: 5, quit: 11};
 
 class Player {
     constructor(clientId) {

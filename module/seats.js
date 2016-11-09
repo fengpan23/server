@@ -77,13 +77,25 @@ class Seats {
         let params = _.pick(opt, 'tableId', 'gameId');
         params.seatindex = seatIndex;
 
-        let data = _.pick(opt, 'kiosk_id', 'ip', 'port');
+        let data = _.pick(opt, 'kioskid', 'ip', 'port');
         return Seat.update(dbc, params, data).then(() => {
             let cur = 0;
             for (let v of this._seats.values())
                 if(v !== 'empty')cur++;
 
             return Promise.resolve({index: seatIndex, cur: cur});
+        });
+    }
+
+    leave(dbc, opt){
+        let data = {state: 'idle', kioskid: null, ip: '0.0.0.0', port: 0};
+        return Seat.update(dbc, opt, data).then(() => {
+            this._seats.set(opt.seatIndex, 'empty');
+            let cur = 0;
+            for (let v of this._seats.values())
+                if(v !== 'empty')cur++;
+
+            return Promise.resolve(cur);
         });
     }
 }
