@@ -60,9 +60,9 @@ class Server extends Events {
                 let action = request.getParams('event');
                 if(player.verify(action)) {
                     let api = options.api[action];
-                    api ? Common.invokeCallback(options.api, api, request, player) : request.close('unknown_action: ' + action);
+                    api ? Common.invokeCallback(options.api, api, request, player) : request.error('unknown_action: ' + action);
                 }else{
-                    request.close('can_not_pass_verify_action: ' + action);
+                    request.error('invalid_action: ' + action);
                 }
             }
         } else {
