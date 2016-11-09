@@ -235,7 +235,7 @@ class G{
     leave(player){
         return this._db.begin().then(dbc =>
             new Promise((resolve, reject) => {
-                let params = {tableId: this._table.id, gameId: this._table.gameid, kioskId: this._kiosk.id, seatIndex: player.index};
+                let params = {tableId: this._table.id, gameId: this._table.gameid, kioskId: player.id, seatIndex: player.index};
                 this._seats.leave(dbc, params).then(cur => {
                     return Table.update(dbc, _.pick(params, 'tableId', 'gameId'), {curkiosk: cur});
                 }).then(() => {

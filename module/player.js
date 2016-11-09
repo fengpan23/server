@@ -7,12 +7,17 @@ const STATUS = {new: 0, init: 1, login: 3, seat: 5, quit: 11};
 
 class Player {
     constructor(clientId) {
-        this.clientId = clientId;
+        this._clientId = clientId;
 
         this._actions = new Set();
         this._status = 'new';
     }
-
+    get id(){
+        return this._kiosk.id
+    }
+    get clientId(){
+        return this._clientId;
+    }
     get status(){
         return this._status;
     }
@@ -31,34 +36,6 @@ class Player {
             return Promise.reject('unknown_session, cat not get kiosk by session on player.init');
         });
     }
-
-    // /**
-    //  * set value to client
-    //  * @param key   {String}
-    //  * @param value {*}
-    //  * @return Boolean
-    //  */
-    // set(key, value){
-    //     if(key){
-    //         if(typeof key === 'object'){
-    //             for(let k in key){
-    //                 this.set(k, key[k]);
-    //             }
-    //         }else{
-    //             this._client[key] = value;
-    //         }
-    //         return true;
-    //     }
-    //     return false;
-    // }
-    //
-    // /**
-    //  * get before set value
-    //  * @param key   {String}
-    //  */
-    // get(key){
-    //     return this._client[key];
-    // }
 
     set(key, value){
         this[key] = value;

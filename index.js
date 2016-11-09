@@ -172,10 +172,10 @@ class Index extends Server{
      * @param player
      */
     quit(player){
-        let kiosk = player.kiosk;
-        let seatIndex = player.index;
         this._lock(player, 'quit').then(() =>
-            this._game.leave(player, this._game.table, this._players.size).then(() => {
+            this._game.leave(player).then(() => {
+                this._players.delete(player.clientId);
+
                 console.log('this._game.id', this._game.id);
                 if (this._game.id) {
                     // return player.leave(request, me.gameprofile, me.table, me.depositbalance.get(kiosk.kiosk_id) || 0);
