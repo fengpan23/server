@@ -245,12 +245,12 @@ class G{
         });
     }
 
-    auth(player){
+    auth(player, opt){
         if(player.id)return Promise.resolve({status: 'ok'});
 
         return this._db.begin().then(dbc =>
             new Promise((resolve, reject) => {
-                player.init(dbc)
+                player.init(dbc, opt)
                 .then(kiosk => this._db.over(dbc).then(() => resolve({status: 'ok', repeat: this._seats.has(player.id)})))
                 .catch(e => this._db.close(dbc).then(() => reject(e)).catch(reject))
             })

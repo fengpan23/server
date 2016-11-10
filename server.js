@@ -64,12 +64,14 @@ class Server extends Events {
         if (options.api) {
             return function (request) {       //request.content => json {event: String, data: Obj}
                 let player = this.players.get(request.clientId);
+                let opt = {};
                 if (!player) {
                     player = new Player(request.clientId);
-                    player.set('session', request.getParams('content.session'));
+                    opt.id = request.getParams('content.id');
+                    opt.session = request.getParams('content.session');
                     this._players.set(request.clientId, player);
                 }
-                this._game.auth(player).then(auth => {
+                this._game.auth(player, opt).then(auth => {
                     if(auth.repeat){
                         if(options.infirm){
                             // return request.close('');
@@ -86,7 +88,7 @@ class Server extends Events {
                         request.error('invalid_action', action);
                     }
                 }).catch(e => {
-                    request.error('invalid_action', e);
+                    request.error(e.code, e.message);
                 });
             }
         } else {

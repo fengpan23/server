@@ -71,7 +71,7 @@ class Seats {
      */
     choose(dbc, opt){
         let seatIndex;
-        if(this._seats.get(opt.index).status === 'empty'){
+        if(this._seats.has(opt.index) && this._seats.get(opt.index).status === 'empty'){
             seatIndex = opt.index;
             this._seats.set(opt.index, {status: 'occupy', kioskId: opt.kioskId});
         }else if(!opt.index || opt.adjust){

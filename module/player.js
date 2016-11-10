@@ -28,18 +28,18 @@ class Player {
         this._status = value;
     }
 
-    init(dbc, session){
-        //TODO: if this._kiosk had id ???
-        // return Kiosk.get(dbc, {session: session}).then(kiosk => {
-        return Kiosk.get(dbc, {id: 205}).then(kiosk => {
+    init(dbc, options){
+        let opt = _.pick(_.omit(options, v => !v), 'id', 'session');
+        if(_.isEmpty(opt))
+            return Promise.reject({code: 'invalid_params', message: options});
+        return Kiosk.get(dbc, opt).then(kiosk => {
             this._status = 'auth';
             if(kiosk){
                 if(kiosk.status !== 1)
-                    return Promise.reject('invalid_user, kiosk is not active on player.init');
-
+                    return Promise.reject({code: 'invalid_user', message: 'kiosk is not active on player.init'});
                 return Promise.resolve(this._kiosk = kiosk);
             }
-            return Promise.reject('unknown_session, cat not get kiosk by session on player.init');
+            return Promise.reject({code: 'unknown_session', message: 'cat not get kiosk by session on player.init'});
         });
     }
 
@@ -69,7 +69,7 @@ class Player {
      */
     lock(action){
         if(this._actions.has(action)){
-            return Promise.reject('player is operating: ' + action);
+            return Promise.reject({code: 'lock_error', message: 'player is operating: ' + action});
         }
         this._actions.add(action);
         return Promise.resolve();
@@ -87,7 +87,7 @@ class Player {
 
     verify(action){
         if(STATUS[action] && STATUS[action] <= STATUS[this._status])
-            return Promise.reject(`verify player action: ${action} error, player status is: ${this._status}`);
+            return Promise.reject({code: 'verify_error', message: `verify player action: ${action} error, player status is: ${this._status}`});
         return  Promise.resolve();
     }
 }
