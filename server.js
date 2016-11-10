@@ -17,7 +17,11 @@ const Player = require('./module/player');
 class Server extends Events {
     /**
      * init game server
-     * @param options  {object}   {api: {join: Func， seat: Func, ....}}
+     * @param options  {object}   {
+     *                  infirm: Boolean,     true相同账号登录被强退
+     *                  tableId: Number,
+     *                  api: {join: Func， seat: Func, ....}
+ *                  }
      */
     constructor(options) {
         super();
@@ -25,9 +29,7 @@ class Server extends Events {
         this._config = new Config();            //create config file module
 
         this._engine = new Engine();
-        this._engine.on('request', this._createBindFunc(options).bind(this)).on('reconnect', request => {
-            console.info('client reconnect !!!');
-        }).on('disconnect', id => {
+        this._engine.on('request', this._createBindFunc(options).bind(this)).on('disconnect', id => {
             if(this.players.has(id)){
                 let api = options.api &&  options.api.disconnect;
                 if(api){
@@ -64,15 +66,28 @@ class Server extends Events {
                 let player = this.players.get(request.clientId);
                 if (!player) {
                     player = new Player(request.clientId);
+                    player.set('session', request.getParams('content.session'));
                     this._players.set(request.clientId, player);
                 }
-                let action = request.getParams('event');
-                if(player.verify(action)) {
-                    let api = options.api[action];
-                    api ? Common.invokeCallback(options.api, api, request, player) : request.error('unknown_action: ' + action);
-                }else{
-                    request.error('invalid_action: ' + action);
-                }
+                this._game.auth(player).then(auth => {
+                    if(auth.repeat){
+                        if(options.infirm){
+                            // return request.close('');
+                            //TODO  踢掉之前玩家  reconnect
+                        }
+                        return request.error('invalid_request, player is in game');
+                    }
+
+                    let action = request.getParams('event');
+                    if(player.verify(action)) {
+                        let api = options.api[action];
+                        api ? Common.invokeCallback(options.api, api, request, player) : request.error('unknown_action: ' + action);
+                    }else{
+                        request.error('invalid_action: ' + action);
+                    }
+                }).catch(e => {
+                    request.error('invalid_action: ' + e);
+                });
             }
         } else {
             return function (request) {
@@ -81,12 +96,14 @@ class Server extends Events {
         }
     }
 
+
+
     broadcast(event, content){
         let data = _.extend({event: event}, content);
         if(data.event){
             this._engine.broadcast(data);
         }else{
-            throw new Error('must had event param !!!');
+            throw new Error('empty event param !!!');
         }
     }
 }

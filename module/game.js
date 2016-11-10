@@ -162,17 +162,13 @@ class G{
      *          clientId: String
      * @returns {Promise.<T>}
      */
-    login(player, opt){
+    login(player){
         if(player.status !== 'new')
             return Promise.reject(`player status ${player.status} error on game.login`);
 
         return this._db.begin().then(dbc =>
             new Promise((resolve, reject) => {
-                player.init(dbc, opt.session).then(kiosk => {
-                    // if(this._seats.has(kiosk.id))return reject('player had login');
-
-                    return Agency.get(dbc, {agencyId: kiosk.agencyid});
-                }).then(agency => {
+                Agency.get(dbc, {agencyId: player.get('kiosk').agencyid}).then(agency => {
                     let poolAgentId = agency.follow_top_agentpool === 'Y' ? (agency.top_agencyid <= 0 ? agency.id : agency.top_agencyid) : agency.id;
                     if ((this._table.agentid === 0 && this._table.topagentid === agency.top_agencyid) || poolAgentId === this._table.poolagentid) {
 
@@ -247,6 +243,18 @@ class G{
         ).then(p => {
             return Promise.resolve(p);
         });
+    }
+
+    auth(player){
+        if(player.id)return Promise.resolve({status: 'ok'});
+
+        return this._db.begin().then(dbc =>
+            new Promise((resolve, reject) => {
+                player.init(dbc)
+                .then(kiosk => this._db.over(dbc).then(() => resolve({status: 'ok', repeat: this._seats.has(player.id)})))
+                .catch(e => this._db.close(dbc).then(() => reject(e)).catch(reject))
+            })
+        );
     }
 }
 

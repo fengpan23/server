@@ -9,8 +9,16 @@ class Seats {
         this._seats = new Map();
     }
 
+    /**
+     * check this seats has player id
+     * @param id    kiosk id
+     * @returns {boolean}
+     */
     has(id){
-        return this._seats.has(id);
+        for (let v of this._seats.values()) {
+            if (v.kioskId === id) return true;
+        }
+        return false;
     }
 
     init(dbc, table, reload){
@@ -65,11 +73,11 @@ class Seats {
         let seatIndex;
         if(this._seats.get(opt.index).status === 'empty'){
             seatIndex = opt.index;
-            this._seats.set(opt.index, {status:　'occupy'});
+            this._seats.set(opt.index, {status: 'occupy', kioskId: opt.kioskId});
         }else if(!opt.index || opt.adjust){
             for (let [k, v] of this._seats) {
                 if (v.status === 'empty') {
-                    this._seats.set(k, {status: 'occupy'});
+                    this._seats.set(k, {status: 'occupy', kioskId: opt.kioskId});
                     seatIndex = +k;
                     break;
                 }

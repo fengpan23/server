@@ -13,7 +13,7 @@ class Player {
         this._status = 'new';
     }
     get id(){
-        return this._kiosk.id
+        return this._kiosk &&　this._kiosk.id
     }
     get username(){
         return this._kiosk.username;

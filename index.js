@@ -200,7 +200,7 @@ class Index extends Server{
         });
     };
 
-    reconnect(request){
+    reconnect(player){
 
     };
 
