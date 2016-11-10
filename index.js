@@ -40,7 +40,7 @@ class Index extends Server{
     seat(player, seatIndex) {
         return this._lock(player, 'seat').then(() => {
             let client = this._engine.getClients(player.clientId);
-            this._game.seat(player, Object.assign({index: seatIndex}, client.remote)).then(index => {
+           return this._game.seat(player, Object.assign({index: seatIndex}, client.remote)).then(index => {
                 player.set('index', index);
                 player.status = 'seat';
                 return this._unlock(player, 'seat');
