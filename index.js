@@ -57,7 +57,7 @@ class Index extends Server{
      */
     open(){
         if (this._game.id)       // 校验 ‘游戏是否正在暂停’ ||  ‘游戏是否已开场’
-            return Promise.reject("match is already opened on engine.open");
+            return Promise.reject({code: 'invalid_call', message: 'match is already opened on engine.open'});
 
         return this._game.start().then(() => {
             return Promise.resolve(this.players);
@@ -177,8 +177,6 @@ class Index extends Server{
         return this._lock(player, 'quit').then(() =>
             this._game.leave(player).then(() => {
                 this._players.delete(player.clientId);
-
-                console.log('this._game.id', this._game.id);
                 if (this._game.id) {
                     // return player.leave(request, me.gameprofile, me.table, me.depositbalance.get(kiosk.kiosk_id) || 0);
                 } else {
@@ -221,9 +219,8 @@ class Index extends Server{
      * @private
      */
     _lock(player, action){
-        if(this.closed){
-            return Promise.reject('server is closed !');
-        }
+        if(this.closed)
+            return Promise.reject({code: 'lock_fail', message: 'server is closed !'});
 
         return player.verify(action).then(() => {
             return player.lock(action);

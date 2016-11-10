@@ -109,11 +109,11 @@ class G{
 
     start(opt){
         if (this._table.status === 0) {     // 检查桌子是否激活
-            return Promise.reject('system_maintenance, Table is not active status on engine.open');
-        } else if (this._profile.setting.system_maintenance !== 0) {    //检查是否系统维护
-            return Promise.reject('system_maintenance, System Maintenance on engine.open');
+            return Promise.reject({code: 'system_maintenance', message: 'Table is not active status on game.start'});
+        } else if (this._profile.setting['system_maintenance'] !== 0) {    //检查是否系统维护
+            return Promise.reject({code: 'system_maintenance', message: 'System Maintenance on game.start'});
         } else if (this._profile.status !== 1) {            //检查游戏是否关闭
-            return Promise.reject('system_maintenance, Game is not active status on engine.open');
+            return Promise.reject({code: 'system_maintenance', message: 'Game is not active status on game.start'});
         }
 
         this.init({reload: true}).then(() => {
@@ -245,6 +245,12 @@ class G{
         });
     }
 
+    /**
+     * auth player
+     * @param player
+     * @param opt   {Object}    {session: String, id: Number}
+     * @returns {*}
+     */
     auth(player, opt){
         if(player.id)return Promise.resolve({status: 'ok'});
 
