@@ -22,6 +22,7 @@ class Index extends Server{
     login(player, options){
         return this._lock(player, 'login').then(() =>
             this._game.login(player, options).then(pla => {
+                player.status = 'login';
                 return this._unlock(pla, 'login');
             }).catch(e => {
                 this._unlock(player, 'login');
@@ -41,6 +42,7 @@ class Index extends Server{
             let client = this._engine.getClients(player.clientId);
             this._game.seat(player, Object.assign({index: seatIndex}, client.remote)).then(index => {
                 player.set('index', index);
+                player.status = 'seat';
                 return this._unlock(player, 'seat');
             }).catch(e => {
                 this._unlock(player, 'seat');

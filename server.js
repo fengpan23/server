@@ -75,18 +75,18 @@ class Server extends Events {
                             // return request.close('');
                             //TODO  踢掉之前玩家  reconnect
                         }
-                        return request.error('invalid_request, player is in game');
+                        return request.error('invalid_request', 'player is in game');
                     }
 
                     let action = request.getParams('event');
                     if(player.verify(action)) {
                         let api = options.api[action];
-                        api ? Common.invokeCallback(options.api, api, request, player) : request.error('unknown_action: ' + action);
+                        api ? Common.invokeCallback(options.api, api, request, player) : request.error('unknown_action', action);
                     }else{
-                        request.error('invalid_action: ' + action);
+                        request.error('invalid_action', action);
                     }
                 }).catch(e => {
-                    request.error('invalid_action: ' + e);
+                    request.error('invalid_action', e);
                 });
             }
         } else {

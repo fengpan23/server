@@ -3,7 +3,7 @@
  */
 const _ = require('underscore');
 const Kiosk = require('../model/kiosk');
-const STATUS = {new: 0, init: 1, login: 3, seat: 5, quit: 11};
+const STATUS = {new: 0, auth: 1, init: 3, login: 5, seat: 7, quit: 11};
 
 class Player {
     constructor(clientId) {
@@ -24,12 +24,15 @@ class Player {
     get status(){
         return this._status;
     }
+    set status(value){
+        this._status = value;
+    }
 
     init(dbc, session){
         //TODO: if this._kiosk had id ???
         // return Kiosk.get(dbc, {session: session}).then(kiosk => {
         return Kiosk.get(dbc, {id: 205}).then(kiosk => {
-            this._status = 'init';
+            this._status = 'auth';
             if(kiosk){
                 if(kiosk.status !== 1)
                     return Promise.reject('invalid_user, kiosk is not active on player.init');
