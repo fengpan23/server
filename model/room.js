@@ -1,7 +1,6 @@
 /**
  * Created by fp on 2016/10/14.
  */
-"use strict";
 const db = require('../libs/db');
 const util = require('../libs/util');
 
@@ -14,12 +13,11 @@ function getCond(params) {
 }
 
 class Room{
-    constructor() {
-    }
+    constructor() {}
 
-    get(dbc, params, order) {
+    static get(dbc, params, order) {
         return db.one(dbc, TABLE, '*', getCond(params), order).then(room => Promise.resolve(util.format(TABLE, room)));
     }
 }
 
-module.exports = new Room();
+module.exports = Room;

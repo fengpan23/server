@@ -1,7 +1,6 @@
 /**
  * Created by fp on 2016/10/14.
  */
-"use strict";
 const _ = require('underscore');
 const db = require('../libs/db');
 const Util = require('../libs/util');
@@ -20,8 +19,7 @@ function getCond(params) {
 }
 
 class Seat {
-    constructor() {
-    }
+    constructor() {}
 
     /**
      * 获取座位列表
@@ -29,7 +27,7 @@ class Seat {
      * @param params
      * @param order
      */
-    find(dbc, params, order) {
+    static find(dbc, params, order) {
         return db.select(dbc, TABLE, '*', getCond(params), order).then(seats => {
             let results = [];
             seats.forEach(seat => {
@@ -45,7 +43,7 @@ class Seat {
      * @param params
      * @param order
      */
-    get(dbc, params, order) {
+    static get(dbc, params, order) {
         return db.one(dbc, TABLE, '*', getCond(params), order);
     }
 
@@ -55,7 +53,7 @@ class Seat {
      * @param fields
      * @param data
      */
-    insert(dbc, fields, data) {
+    static insert(dbc, fields, data) {
         return db.inserts(dbc, TABLE, _.map(fields, field => TABLE + '_' + field), data);
     }
 
@@ -65,7 +63,7 @@ class Seat {
      * @param params
      * @param data
      */
-    update(dbc, params, data) {
+    static update(dbc, params, data) {
         let seat = {[TABLE + '_updated'] : +new Date()};
 
         let d = _.pick(data, 'kioskid', 'agentid', 'gameid', 'roomid', 'state', 'ip', 'port');
@@ -75,4 +73,4 @@ class Seat {
         return db.update(dbc, TABLE, seat, getCond(params));
     }
 }
-module.exports = new Seat();
+module.exports = Seat;

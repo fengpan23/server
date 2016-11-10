@@ -1,7 +1,6 @@
 /**
  * Created by fp on 2016/10/17.
  */
-"use strict";
 const db = require('../libs/db');
 
 const TABLE = 'agency_game';
@@ -15,12 +14,11 @@ function cond(params) {
 }
 
 class AgencyGame{
-    constructor() {
-    }
+    constructor() {}
 
-    find(dbc, params, order) {
+    static find(dbc, params, order) {
         return db.select(dbc, TABLE, '*', cond(params), order);
     }
 }
 
-module.exports = new AgencyGame();
+module.exports = AgencyGame;

@@ -2,11 +2,11 @@
  * Created by fp on 2016/10/14.
  */
 const _ = require('underscore');
-const Log = require('log')();
 
 const Table = require('../model/table');
 const Room = require('../model/room');
 const Game = require('../model/game');
+const Match = require('../model/match');
 const Agency = require('../model/agency');
 const AgencyGame = require('../model/agency_game');
 const AgencyPool = require('../model/agency_pool');
@@ -117,13 +117,26 @@ class G{
         }
 
         this.init({reload: true}).then(() => {
-            // game.checkagencygame(dbc, me.gameprofile);
-        }).then(() => {
-            // return gamematch.open(dbc, me.table);
-        }).then(matchId => {
-            this._id = matchId;
-            this._table.matchid = matchId;
-        }).then(() => {
+            let params = {agencyId: this._profile.top_agentid, gameId: this._profile.id, status: 1};
+            return AgencyGame.find(dbc, params)
+        }).then(eg => {
+            if (_.isEmpty(eg))
+                return Promise.reject({code: 'system_maintenance', message: 'on agency games on Game.start'});
+
+            // let dbnow = common.datetimezoneformat(new Date(), configs.envconf().timezone);
+            let params = {tableId: this._table.id, gameId: this._table.gameid};
+            let data = {lastmatch: dbnow};
+
+            return Table.update(dbc, params, data).then(() => {
+                        let data = {agentid: table.poolagentid, tableid: table.tableid, gameid: table.gameid, matchstart: dbnow, state: "open"};
+                        return Match.insert(dbc, data)
+                    });
+        }).then(res => {
+            if (res.insertId) {
+                this._id = this._table.matchid = res.insertId;
+            }else{
+                return Promise.reject({code: 'unexpected_error', message: 'add match error, insert not success'});
+            }
             let idx = 0;
             let error = false;
             if (idx < players.length) {

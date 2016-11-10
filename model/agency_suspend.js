@@ -1,7 +1,6 @@
 /**
- * Created by fengpan on 2016/10/23.
+ * Created by fp on 2016/10/23.
  */
-"use strict";
 const db = require('../libs/db');
 
 const TABLE = 'agency_suspend';
@@ -11,13 +10,13 @@ class Suspend{
 
     }
 
-    getCount(dbc, agentstructure) {
+    static getCount(dbc, agentstructure) {
         let cond = [
             {"agency_suspend_agencyid": {"IN": agentstructure}},
             {"agency_suspend_status": 1}
         ];
         return db.count(dbc, TABLE, '*', cond);
-    };
+    }
 }
 
-module.exports = new Suspend();
+module.exports = Suspend;

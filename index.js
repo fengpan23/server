@@ -29,7 +29,7 @@ class Index extends Server{
                 return Promise.reject(e);
             })
         );
-    };
+    }
 
     /**
      * player have seat
@@ -49,7 +49,7 @@ class Index extends Server{
                 return Promise.reject(e);
             });
         });
-    };
+    }
 
     /**
      * start game
@@ -167,7 +167,7 @@ class Index extends Server{
 
     win(request) {
 
-    };
+    }
 
     /**
      * player quit  玩家退出游戏，返回玩家买入金额，释放座位（如果已经坐下）

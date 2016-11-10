@@ -1,14 +1,12 @@
 /**
  * Created by fengpan on 2016/10/22.
  */
-
-"use strict";
 const db = require('../libs/db');
 const Util = require('../libs/util');
 
 const TABLE = "kiosk";
 
-function Cond(params) {
+function getCond(params) {
     let cond = [];
     if (params.id) cond.push({kiosk_id: params.id});
     if (params.session) cond.push({kiosk_session: params.session});
@@ -16,12 +14,10 @@ function Cond(params) {
 }
 
 class Kiosk{
-    constructor(){
+    constructor(){}
 
-    }
-
-    get(dbc, params) {
-        return db.one(dbc, TABLE, '*', Cond(params)).then(kiosk => Promise.resolve(Util.format(TABLE, kiosk)));
+    static get(dbc, params) {
+        return db.one(dbc, TABLE, '*', getCond(params)).then(kiosk => Promise.resolve(Util.format(TABLE, kiosk)));
     }
 
     /**
@@ -29,7 +25,7 @@ class Kiosk{
      * @param dbc
      * @param kiosk_id
      */
-    getStatus(dbc, id) {
+    static getStatus(dbc, id) {
         return db.cell(dbc, TABLE, "kiosk_status", [{kiosk_id: id}]);
     }
 
@@ -38,7 +34,7 @@ class Kiosk{
      * @param dbc
      * @param client
      */
-    getkioskforupdate(dbc, kioskid, session) {
+    static getkioskforupdate(dbc, kioskid, session) {
         return new Promise(function (resolve, reject) {
             let sql = `select * from ${tablename} where kiosk_id= ${kioskid} `;
             if (!!session)
@@ -73,7 +69,7 @@ class Kiosk{
      * @param kiosk
      * @param amount
      */
-    updatebalance(dbc, kiosk, amount, ptype) {
+    static updateBalance(dbc, kiosk, amount, ptype) {
         let cond = [{"kiosk_id": kiosk.kiosk_id}];
         let data = {};
         let pointname = ptype ? profile.getpointname(ptype) : profile.getpointname();
@@ -82,4 +78,4 @@ class Kiosk{
     }
 }
 
-module.exports = new Kiosk();
+module.exports = Kiosk;

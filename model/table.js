@@ -1,13 +1,12 @@
 /**
  * Created by fp on 2016/10/14.
  */
-"use strict";
 const _ = require('underscore');
 const db = require('../libs/db');
 
 const TABLE = 'game_multiplayer_table';
 
-function _getCond(params) {
+function getCond(params) {
     let cond = [];
     if (params.tableId)
         cond.push({[TABLE + '_id']: params.tableId});
@@ -19,16 +18,15 @@ function _getCond(params) {
 }
 
 class Table {
-    constructor() {
-    }
+    constructor() {}
 
     /**
      * （按条件）获取单个桌子
      * @param dbc
      * @param params
      */
-    get(dbc, params) {
-        return db.one(dbc, TABLE, '*', _getCond(params)).then(table => {
+    static get(dbc, params) {
+        return db.one(dbc, TABLE, '*', getCond(params)).then(table => {
             let result = {};
             for(let key in table)
                 result[key.split('_').pop()] = table[key];
@@ -42,8 +40,8 @@ class Table {
      * @param params
      * @param data
      */
-    update(dbc, params, data) {
-        let cond = _getCond(params);
+    static update(dbc, params, data) {
+        let cond = getCond(params);
         let table = {[TABLE +　'_updated']: +new Date()};
         let columns = _.pick(data, 'agentid', 'gameid', 'status', 'index', 'ptype', 'maxkiosk',
                                     'curkiosk', 'privateip', 'ip', 'port', 'minbet', 'maxbet',
@@ -56,4 +54,4 @@ class Table {
     }
 }
 
-module.exports = new Table();
+module.exports = Table;
