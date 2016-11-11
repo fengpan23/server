@@ -2,6 +2,7 @@
  * Created by fp on 2016/10/13.
  */
 
+const Log = require('log')();
 const Server = require('./server');
 
 class Index extends Server{
@@ -234,6 +235,8 @@ class Index extends Server{
      * @private
      */
     _unlock(player, action){
+        if(this.closed)
+            return Log.error('call unlock error !!!');
         return player.unlock(action);
     }
 }

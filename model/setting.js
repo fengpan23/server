@@ -2,6 +2,8 @@
  * Created by fp on 2016/10/17.
  */
 const db = require('../libs/db');
+const Util = require('../libs/util');
+
 
 const TABLE = 'game_setting';
 
@@ -14,7 +16,13 @@ class Setting {
      * @param cond
      */
     static find (dbc, cond) {
-        return db.select(dbc, TABLE, '*', cond);
+        return db.select(dbc, TABLE, '*', cond.map(c => TABLE + '_' + c)).then(res => {
+            let settings = [];
+            for (let item of res) {
+                settings.push(Util.format(TABLE, item));
+            }
+            return Promise.resolve(settings);
+        });
     }
 
     /**
