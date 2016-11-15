@@ -3,40 +3,24 @@
  */
 const _ = require('underscore');
 const db = require('../libs/db');
+const Util = require('../libs/util');
 
 const TABLE = 'game_multiplayer_match';
-
-function getCond(params) {
-    let cond = [];
-    if (params.id) cond.push({game_multiplayer_match_id: params.id});
-    if (params.agentid) cond.push({game_multiplayer_match_agentid: params.agentid});
-    if (params.tableid) cond.push({game_multiplayer_match_tableid: params.tableid});
-    if (params.gameid) cond.push({game_multiplayer_match_gameid: params.gameid});
-    if (params.state) cond.push({game_multiplayer_match_state: params.state});
-    return cond;
-}
+const TIMEZONE = process.env['TIMEZONE'] || 'Asia/Kuala_Lumpur';
 
 class Match {
-    constructor() {
-
-    }
+    constructor() {}
 
     static insert(dbc, data) {
-        let match = {[TABLE + '_created']: common.datetimezoneformat(new Date(), configs.envconf().timezone)};
+        let match = Util.format(TABLE, _.pick(data, 'agentId', 'tableId', 'gameId', 'kioskCount', 'state', 'betTotal',
+                                                    'winTotal', 'payout', 'betDetail', 'result', 'updated'), true);
 
-        let columns = _.pick(data, 'agentid', 'tableid', 'gameid', 'kioskcount', 'state', 'bettotal', 'wintotal',
-                                    'payout', 'betdetail', 'result', 'updated');
-        for(let key in columns) {
-            match[TABLE + '_' + key] = columns[key];
-        }
-
-        if (data.matchstart) match[TABLE + 'time_matchstart'] = data.matchstart;
-        if (data.matchend) match[TABLE + 'time_matchstart'] = data.matchend;
+        match[TABLE + '_created'] = Util.formatDate(new Date(), TIMEZONE);
+        if (data['matchStart']) match[TABLE + '_time_matchstart'] = data['matchStart'];
+        if (data['matchEnd']) match[TABLE + '_time_matchstart'] = data['matchEnd'];
 
         return db.insert(dbc, TABLE, match);
     }
-
-    ;
 
     /**
      * 更新游戏场次记录（主要更新游戏结果）
@@ -45,19 +29,12 @@ class Match {
      * @param data
      */
     static update(dbc, params, data) {
-        let cond = _getcond(params);
+        let match =  Util.format(TABLE, data, true);
 
-        let match = {game_multiplayer_match_updated: common.datetimezoneformat(new Date(), configs.envconf().timezone)};
-        if (data.kioskcount) match.game_multiplayer_match_kioskcount = data.kioskcount;
-        if (data.matchend) match.game_multiplayer_match_time_matchend = data.matchend;
-        if (data.state) match.game_multiplayer_match_state = data.state;
-        if (data.bettotal) match.game_multiplayer_match_bettotal = data.bettotal;
-        if (data.wintotal) match.game_multiplayer_match_wintotal = data.wintotal;
-        if (data.payout) match.game_multiplayer_match_payout = data.payout;
-        if (data.betdetail) match.game_multiplayer_match_betdetail = data.betdetail;
-        if (data.result) match.game_multiplayer_match_result = data.result;
+        match[TABLE + '_updated'] = Util.formatDate(new Date(), TIMEZONE);
+        match[TABLE + '_time_matchend'] = data['matchEnd'] || Util.formatDate(new Date(), TIMEZONE);
 
-        return db.update(dbc, tablename, match, cond);
+        return db.update(dbc, TABLE, match, Util.getCond(TABLE, params));
     }
 
     ;
@@ -67,12 +44,12 @@ class Match {
      * @param dbc
      */
     getlatestmatch(dbc) {
-        return db.one(dbc, tablename, '*', null, {game_multiplayer_match_created: "DESC"});
+        return db.one(dbc, TABLE, '*', null, {game_multiplayer_match_created: "DESC"});
     }
 
     getmatches(dbc, params, order) {
         let cond = _getcond(params);
-        return db.select(dbc, tablename, '*', cond, order);
+        return db.select(dbc, TABLE, '*', cond, order);
     }
 
 

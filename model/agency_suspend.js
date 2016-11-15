@@ -6,13 +6,11 @@ const db = require('../libs/db');
 const TABLE = 'agency_suspend';
 
 class Suspend{
-    constructor() {
+    constructor() {}
 
-    }
-
-    static getCount(dbc, agentstructure) {
+    static getCount(dbc, structure) {
         let cond = [
-            {"agency_suspend_agencyid": {"IN": agentstructure}},
+            {"agency_suspend_agencyid": {"IN": structure}},
             {"agency_suspend_status": 1}
         ];
         return db.count(dbc, TABLE, '*', cond);

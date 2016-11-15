@@ -4,8 +4,14 @@
 const db = require('../libs/db');
 const Util = require('../libs/util');
 
-
 const TABLE = 'game_setting';
+
+function getCond(params) {
+    let cond = [];
+    if (params.status) cond.push({[TABLE + '_status']: params.status});
+    if (params.agencyId) cond.push({[TABLE + '_agencyid']: params.agencyId});
+    return cond;
+}
 
 class Setting {
     constructor() {}
@@ -13,10 +19,10 @@ class Setting {
     /**
      * 获取所有游戏配置
      * @param dbc
-     * @param cond
+     * @param params
      */
-    static find (dbc, cond) {
-        return db.select(dbc, TABLE, '*', cond.map(c => TABLE + '_' + c)).then(res => {
+    static find (dbc, params) {
+        return db.select(dbc, TABLE, '*', getCond(params)).then(res => {
             let settings = [];
             for (let item of res) {
                 settings.push(Util.format(TABLE, item));

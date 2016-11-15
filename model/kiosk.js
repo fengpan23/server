@@ -23,7 +23,7 @@ class Kiosk{
     /**
      * 获取用户状态
      * @param dbc
-     * @param kiosk_id
+     * @param id
      */
     static getStatus(dbc, id) {
         return db.cell(dbc, TABLE, "kiosk_status", [{kiosk_id: id}]);

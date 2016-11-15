@@ -2,6 +2,9 @@
  * Created by fp on 2016/11/11.
  */
 
+const _ = require('underscore');
+const Common = require('common');
+
 const Game = require('../model/game');
 const Agency = require('../model/agency');
 const AgencyGame = require('../model/agency_game');
@@ -12,34 +15,97 @@ const Setting = require('../model/setting');
 
 class Profile{
     constructor(){
-        this._profile= {};
+        this._game= {};
+        this._setting = {};
+    }
+    get game(){
+        return Object.assign({}, this._game);
+    }
+    get setting(){
+        return Object.assign({}, this._setting);
     }
 
-    init(dbc, opt){
-        return Game.get(dbc, opt.gameid)
+    init(dbc, options){
+        return Game.get(dbc, options.gameid)
             .then(game => {
-                this._profile = game;
-
-                return Agency.get(dbc, {agencyId: opt.topagentid});
+                this._game = game;
+                return Agency.get(dbc, {agencyId: options.topagentid});
             })
             .then(agency => {
-                if (this._table.agentid === 0)
-                    this._profile.pool_agentid = this._table.topagentid;
+                if (options.agentid === 0)
+                    this._game.pool_agentid = options.topagentid;
 
-                return AgencyGame.find(dbc, {gameId: this._table.gameid, agentId: this._profile.pool_agentid}, 1);
+                return AgencyGame.find(dbc, {gameId: options.gameid, agentId: this._game.pool_agentid}, 1);
             })
             .then(a => {
                 // console.log(a)
-                return SettingGroup.get(dbc, this._profile.groupid, this._profile.pool_agentid, 1);
+                return SettingGroup.get(dbc, this._game.groupid, this._game.pool_agentid, 1);
             })
             .then(b => {
-                console.log('_profile', this._profile);
-                return Setting.find(dbc, [{game_setting_agencyid: 0}, {game_setting_status: 1}]);
+                this._game.top_agentid = 0;
+                return this._loadSetting(dbc, options);
             })
-            .then(setting => {
-                console.log('setting', setting);
-                return  AgencyPool.get(dbc, this._table.ptype, this._table.gameid, this._table.agentid);
-            })
+            .then(settings => {
+                this._setting = settings;
+                return  AgencyPool.get(dbc, options.ptype, options.gameid, options.agentid);
+            });
+    }
+
+    _loadSetting(dbc, options){
+        return Setting.find(dbc, {agencyId: 0, status: 1}).then(settings => {
+            let results = {};
+            for (let s of settings)
+                results[s.name] = formatData(s);
+
+            if (options.topagentid === 0) {
+                return Promise.resolve(results);
+            } else {
+                return Setting.find(dbc, {agencyId: options.topagentid}, {status: 1}).then(_settings => {
+                    for (let s of _settings)
+                        results[s.name] = formatData(s);
+
+                    return Promise.resolve(results);
+                });
+            }
+        });
+
+        function formatData(obj){
+            let res;
+            switch (obj.type) {
+                case 'boolean':
+                    res = !_.isEmpty(obj.data);
+                    break;
+                case 'number':
+                    res = +obj.data;
+                    break;
+                case 'string':
+                    res = String(obj.data);
+                    break;
+                case 'json':
+                    res = Common.safeParse(obj.data);
+                    break;
+            }
+            return res;
+        }
+    }
+
+    _format(obj){
+        let res;
+        switch (obj.type) {
+            case 'boolean':
+                res = !_.isEmpty(obj.data);
+                break;
+            case 'number':
+                res = +obj.data;
+                break;
+            case 'string':
+                res = String(obj.data);
+                break;
+            case 'json':
+                res = Common.safeParse(obj.data);
+                break;
+        }
+        return res;
     }
 }
 

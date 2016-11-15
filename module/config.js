@@ -28,12 +28,12 @@ class Config {
                 this.setting.set(key, file[key]);
             }
         } catch (err) {
-            Log.error(`Error load file:${fileName}, err:(${err})`);
+            Log.error(`Error load file:${fileName}, err:${err}`);
         }
     }
 
     /**
-     * @return key {string}     eg: common.dbcluster
+     * @return key {string}     eg: common.cluster
      */
     get(key) {
         let keys = key.split('.');

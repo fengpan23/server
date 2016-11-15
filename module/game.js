@@ -6,11 +6,13 @@ const _ = require('underscore');
 const Table = require('../model/table');
 const Room = require('../model/room');
 const Match = require('../model/match');
+const Agency = require('../model/agency');
 const AgencyGame = require('../model/agency_game');
+const AgencySuspend = require('../model/agency_suspend');
 
 const DB = require('./db');
 const Seats = require('./seats');
-const Profile = require('./Profile');
+const Profile = require('./profile');
 
 class G{
     constructor(options){
@@ -22,7 +24,6 @@ class G{
 
         this._db = new DB(_.pick(options, 'cluster', 'nodes'));
     }
-
     get id(){
         return this._id;
     }
@@ -33,110 +34,23 @@ class G{
         return Object.assign({}, this._profile);
     }
 
-    init(opt){
+    init(options){
         return this._db.begin().then(dbc =>
-            Table.get(dbc, {tableId: opt.tableId})
-                .then(table => {
-                    if (_.isEmpty(table)) return Promise.reject('table not exits on game.init');
-
-                    this._table = table;
-                    if (!opt.reload && (table.curkiosk > 0 || table.status === 2)) {
-                        table.curkiosk = 0;
-                        table.status = 1;
-                        return Table.update(dbc, {tableId: table.id}, {curkiosk: 0, status: 1});
-                    }
-                    return Promise.resolve();
-                })
-                .then(() => {
-                    if(this._table.roomid) {
-                        Room.get(dbc, {roomId: this._table.roomid}).then(room => {
-                            _.extend(this._table, _.omit(room, 'id'));
-                        });
-                    }
-
-                    return this._seats.init(dbc, this._table);
-                })
-                .then(() => {
-                    return this._profile.init(dbc, {gameid: this._table.gameid});
-                })
-                .catch(e => {
-                    // dbc.rollback(dbc).then(() => {
-                    //     db.destroy(dbc);
-                    //     me._resume();
-                    //     reject(err);
-                    //     if (!reload) process.exit(500);
-                    // }).catch(err=> {
-                    //     me._resume();
-                    //     reject(err);
-                    //     if (!reload) process.exit(500);
-                    // });
-                    return Promise.reject(e);
-                })
-        ).then(res => {
-            console.log('res', res);
+            this._init(dbc, options).then(() => {
+                if (this._table.curkiosk > 0 || this._table.status === 2) {
+                    this._table.curkiosk = 0;
+                    this._table.status = 1;
+                    return Table.update(dbc, {tableId: this._table.id}, {curkiosk: 0, status: 1});
+                }
+            }).then(() => {
+                return this._db.over(dbc);
+            }).catch(e => {
+                return this._db.close(dbc).then(() => Promise.reject(e));
+            })
+        ).then(() => {
             return Promise.resolve(_.pick(this._table, 'ip', 'port'));
         }).catch(e => {
             return Promise.reject(e);
-        });
-    }
-
-    start(opt){
-        if (this._table.status === 0) {     // 检查桌子是否激活
-            return Promise.reject({code: 'system_maintenance', message: 'Table is not active status on game.start'});
-        } else if (this._profile.setting['system_maintenance'] !== 0) {    //检查是否系统维护
-            return Promise.reject({code: 'system_maintenance', message: 'System Maintenance on game.start'});
-        } else if (this._profile.status !== 1) {            //检查游戏是否关闭
-            return Promise.reject({code: 'system_maintenance', message: 'Game is not active status on game.start'});
-        }
-
-        this.init({reload: true}).then(() => {
-            let params = {agencyId: this._profile.top_agentid, gameId: this._profile.id, status: 1};
-            return AgencyGame.find(dbc, params)
-        }).then(eg => {
-            if (_.isEmpty(eg))
-                return Promise.reject({code: 'system_maintenance', message: 'on agency games on Game.start'});
-
-            // let dbnow = common.datetimezoneformat(new Date(), configs.envconf().timezone);
-            let params = {tableId: this._table.id, gameId: this._table.gameid};
-            let data = {lastmatch: dbnow};
-
-            return Table.update(dbc, params, data).then(() => {
-                        let data = {agentid: table.poolagentid, tableid: table.tableid, gameid: table.gameid, matchstart: dbnow, state: "open"};
-                        return Match.insert(dbc, data)
-                    });
-        }).then(res => {
-            if (res.insertId) {
-                this._id = this._table.matchid = res.insertId;
-            }else{
-                return Promise.reject({code: 'unexpected_error', message: 'add match error, insert not success'});
-            }
-            let idx = 0;
-            let error = false;
-            if (idx < players.length) {
-                let client = players[idx];
-                idx++;
-                if (client.closed)
-                    return kioskreload();
-                kiosk.reload(dbc, client, me.table).then(function () {
-                    playersmap.set(client.kiosk.kiosk_id, client);
-                    kioskreload();
-                }).catch(function (err) {
-                    (!error) && (error = err);
-                    kioskreload();
-                })
-            } else {
-                return !!error ? _rej(error) : _res();
-            }
-        }).then(() => {
-            if (opt.deposit) {
-                // _cleardepositmap(me);
-                // return gamematch.depositmatchopen(dbc, playersmap, me.table, me.depositbalance);
-            } else
-                return Promise.resolve();
-        }).then(() => {
-            return this._db.over(dbc);
-        }).catch(function (err) {
-            this._db.close(dbc).then(() => reject(e)).catch(reject)
         });
     }
 
@@ -231,6 +145,77 @@ class G{
         });
     }
 
+    start(players){
+        if (this._table.status === 0) {     // 检查桌子是否激活
+            return Promise.reject({code: 'system_maintenance', message: 'Table is not active status on game.start'});
+        } else if (this._profile.setting['system_maintenance'] !== 0) {    //检查是否系统维护
+            return Promise.reject({code: 'system_maintenance', message: 'System Maintenance on game.start'});
+        } else if (this._profile.game['status'] !== 1) {            //检查游戏是否关闭
+            return Promise.reject({code: 'system_maintenance', message: 'Game is not active status on game.start'});
+        }
+
+        return this._db.begin().then(dbc =>
+            this._init(dbc, {tableId: this._table.id}).then(() => {
+                let params = {agencyId: this._table.top_agentid, gameId: this._profile.game.id, status: 1};
+                console.log('params', params);
+                return AgencyGame.find(dbc, params);
+            }).then(eg => {
+                if (_.isEmpty(eg))
+                    return Promise.reject({code: 'system_maintenance', message: 'on agency games on Game.start'});
+
+                // let dbnow = common.datetimezoneformat(new Date(), configs.envconf().timezone);
+                let params = {tableId: this._table.id, gameId: this._table.gameid};
+                let data = {lastmatch: +new Date()};
+
+                return Table.update(dbc, params, data).then(() => {
+                    let data = {agentid: this._table.poolagentid, tableid: this._table.tableid, gameid: this._table.gameid, matchstart: +new Date(), state: "open"};
+                    return Match.insert(dbc, data)
+                });
+            }).then(res => {
+                if (res.insertId) {
+                    this._id = this._table.matchid = res.insertId;
+                }else{
+                    return Promise.reject({code: 'unexpected_error', message: 'add match error, insert not success'});
+                }
+                let opt = {
+                    walletType: this._profile.game['ptype'],
+                    pType: this._table.ptype,
+                    agentId: this._table.agentid,
+                    topAgentId: this._table.topagentid,
+                    poolAgentId: this._table.poolagentid
+                };
+                return Promise.all(players.map(player => player.load(dbc, opt)));
+            }).then(() => {
+                return this._db.over(dbc);
+            }).catch(e => {
+                return this._db.close(dbc).then(() => Promise.reject(e));
+            })
+        );
+    }
+
+    over(players){
+        return this._db.begin().then(dbc =>
+            Promise.all(players.map(player => player.close(dbc))).then(() => {
+                let params = {id: this._id, agentId: this._table.poolAgentId, tableId: this._table.id, gameId: this._table.gameid, state: "open"};
+                let data = {
+                    kioskCount: gamematchresult.kioskcount,
+                    betTotal: common.tonumber(gamematchresult.bettotal, 4),
+                    winTotal: common.tonumber(gamematchresult.wintotal, 4),
+                    payout: common.tonumber((gamematchresult.wintotal - gamematchresult.bettotal), 4),
+                    betDetail: JSON.stringify(common.float2fix(gamematchresult.betdetail)),
+                    result: JSON.stringify(common.float2fix(gamematchresult.result)),
+                    matchEnd: dbtime,
+                    state: "close"
+                };
+                return Match.update(dbc, params, data);
+            }).then(() => {
+                return this._db.over(dbc);
+            }).catch(e => {
+                return this._db.close(dbc).then(() => Promise.reject(e));
+            })
+        );
+    }
+
     /**
      * auth player
      * @param player
@@ -247,6 +232,23 @@ class G{
                 .catch(e => this._db.close(dbc).then(() => reject(e)).catch(reject))
             })
         );
+    }
+
+    _init(dbc, options){
+        return Table.get(dbc, {tableId: options.tableId}).then(table => {
+                if (_.isEmpty(table)) return Promise.reject({code: 'invalid_params', message: 'table not exits on game.init'});
+
+                this._table = table;
+                if(table.roomid) {
+                    Room.get(dbc, {roomId: table.roomid}).then(room => {
+                        _.extend(table, _.omit(room, 'id'));
+                    });
+                }
+
+                return this._seats.init(dbc, table);
+            }).then(() => {
+                return this._profile.init(dbc, _.pick(this._table, 'gameid', 'topagentid', 'agentid', 'ptype', 'agentid'));
+            });
     }
 }
 

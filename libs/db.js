@@ -7,8 +7,7 @@ const mysql = require('mysql');
 const common = require('common');
 
 class DB {
-    constructor() {
-    }
+    constructor() {}
 
     query(dbc, sql) {
         let _query = function (dbc, sql) {
@@ -17,6 +16,7 @@ class DB {
                 function q(){
                     dbc.query(sql, (err, result) => {
                         if(err){
+                            console.error('sql:', sql);
                             reject(err)
                         } else {
                             if (!result && isSelect && times++ < 3){

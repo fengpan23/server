@@ -4,6 +4,7 @@
 
 const Log = require('log')();
 const Server = require('./server');
+const STATUS = {exit: -1, init: 1, opened: 3, closed: 5, unlock: 9, locked: 10};
 
 class Index extends Server{
     /**
@@ -12,6 +13,8 @@ class Index extends Server{
      */
     constructor(options) {
         super(options);
+
+        this._status = 'init';
     }
 
     /**
@@ -60,114 +63,35 @@ class Index extends Server{
         if (this._game.id)       // 校验 ‘游戏是否正在暂停’ ||  ‘游戏是否已开场’
             return Promise.reject({code: 'invalid_call', message: 'match is already opened on engine.open'});
 
-        return this._game.start().then(() => {
-            return Promise.resolve(this.players);
+        this._status = STATUS.locked;
+        return this._game.start([...this._players.values()]).then(() => {
+            this._status = STATUS.opened;
         }).catch(e => {
             let clients = this._engine.getClients(this.players.keys());
             clients.forEach(client => {
                 client.close('system_maintenance');
             });
+            this._status = STATUS.unlock;
             return Promise.reject(e);
         });
     }
 
     close(){
-        if (me.options.deposit && me.getdepositstake() !== me.getdepositwin()) {
-            return Promise.reject(new wrong("error", "invalid_action", 'staketotal is not equal wintotal on engine.MatchClose'));
-        }
-        let players = me.getplayers();
-        return new Promise(function (resolve, reject) {
-            let dbc = null;
-            me._wait().then(function () {
-                return db.begin();
-            }).then(function (_dbc) {
-                dbc = _dbc;
-                profile.setdbtime();
-                if (me.options.deposit)
-                    return gamematch.depositmatchclose(dbc, me.table, me.gameprofile, me.depositstake, me.depositwin, me.depositbalance, me.depositmatchmaster);
-                else
-                    return Promise.resolve();
-            }).then(function (protectmap) {
-                if (common.typeof(protectmap) !== 'map')
-                    protectmap = new Map();
+        // if (this.options.deposit && me.getdepositstake() !== me.getdepositwin()) {
+        //     return Promise.reject(new wrong("error", "invalid_action", 'staketotal is not equal wintotal on engine.MatchClose'));
+        // }
+        if(this._status === STATUS.locked)
+            return Promise.reject({code: 'invalid_call', message: 'server id locked in close'});
 
-                //玩家个人关场
-                return new Promise(function (_res, _rej) {
-                    let idx = 0;
-                    let error = false;
-                    let reqarr = [];
-
-                    function kioskmatchclose() {
-                        if (idx < players.length) {
-                            let client = players[idx];
-                            idx++;
-                            if (client.closed || common.empty(client.match.master.id))
-                                return kioskmatchclose();
-                            let req = client.createreq('matchclose', dbc);
-                            req.reqtimeout(0);
-                            req.snapshotsync();
-                            reqarr.push(req);
-                            let depositbal = 0;
-                            let comission = 0;
-                            if (me.options.deposit) {
-                                depositbal = me.depositbalance.get(client.kiosk.kiosk_id) || 0;
-                                comission = protectmap.get(client.kiosk.kiosk_id) || 0;
-                            }
-                            kioskmatch.close(req, me.gameprofile, me.table, depositbal, comission).then(function () {
-                                return gamepromise(req);
-                            }).then(function () {
-                                kioskmatchclose();
-                            }).catch(function (err) {
-                                (!error) && (error = err);
-                                kioskmatchclose();
-                            });
-                        } else {
-                            reqarr.forEach(function (_req) {
-                                if (!!error) _req.snapshotrevert();
-                                _req.destroy();
-                            });
-                            return !!error ? _rej(error) : _res();
-                        }
-                    }
-
-                    kioskmatchclose();
-                });
-            }).then(function () {
-                //整体游戏关场
-                return gamematch.close(dbc, me.table, me.gamematchresult);
-            }).then(function () {
-                return db.commit(dbc);
-            }).then(function () {
-                db.destroy(dbc);
-                _clearplayersmatch(players);
-                _initgameresult(me);
-                me._resume();
-                return me.init(me.table.tableid, true);
-            }, function (err) {
-                return db.rollback(dbc).then(function () {
-                    db.destroy(dbc);
-                    wrong.wronghandler(err, (type, code, debug)=>me.server.errorlog(type, code, debug),
-                        ()=>me.server.errorlog('error', 'unexpected_error', err));
-                    me.kickplayers();
-                    me._resume();
-                    return Promise.reject(err);
-                }).catch(function (_err) {
-                    wrong.wronghandler(_err, (type, code, debug)=>me.server.errorlog(type, code, debug),
-                        ()=>me.server.errorlog('error', 'unexpected_error', _err));
-                    me.kickplayers();
-                    me._resume();
-                    return Promise.reject(_err);
-                });
-            }).then(function () {
-                resolve();
-            }).catch(function (err) {
-                reject(err);
-            });
+        this._status = STATUS.locked;
+        let players = [...this._players.values()];
+        return this._game.over(players).then(() => {
+            this._status = STATUS.closed;
+            this._unlock('close');
+        }).catch(e => {
+            this._status = STATUS.unlock;
+            return Promise.reject(e);
         });
-    }
-
-    win(request) {
-
     }
 
     /**
@@ -201,11 +125,8 @@ class Index extends Server{
         });
     };
 
-    reconnect(player){
-
-    };
-
     exit() {
+        this._status = STATUS.exit;
     };
 
     get(name){
@@ -220,8 +141,8 @@ class Index extends Server{
      * @private
      */
     _lock(player, action){
-        if(this.closed)
-            return Promise.reject({code: 'lock_fail', message: 'server is closed !'});
+        if(this._status === STATUS.exit)
+            return Promise.reject({code: 'lock_fail', message: 'server is exit !'});
 
         return player.verify(action).then(() => {
             return player.lock(action);
@@ -235,33 +156,10 @@ class Index extends Server{
      * @private
      */
     _unlock(player, action){
-        if(this.closed)
-            return Log.error('call unlock error !!!');
+        if(this._status === STATUS.exit)
+            return Promise.reject({code: 'unlock_fail', message: 'server is exit !'});
         return player.unlock(action);
     }
 }
 
 module.exports = Index;
-//test
-if (require.main !== module) return;
-
-let server = new Index({tableId: 220, api: {
-    init: function (request) {
-        server.login(request).then(p => {
-            console.log('init: ', p.get('username'));
-            request.response('game', {username: p.get('username')});
-            request.close();
-        }).catch(e => {
-            console.error(e);
-        })
-    },
-    seat: function (request, player) {
-        server.seat(player).then(p => {
-            console.log('seat: ', p.get('username'));
-            request.response('game', {seatIndex: p.get('index')});
-            request.close();
-        }).catch(e => {
-            console.error(e);
-        })
-    }
-}});

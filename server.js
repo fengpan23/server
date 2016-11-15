@@ -50,7 +50,7 @@ class Server extends Events {
         });
 
         this._players = new Map();
-
+        process.env.TIMEZONE =
         process.on('uncaughtException', err => {
             console.error('server uncaughtException', err);
         });
