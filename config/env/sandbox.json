@@ -1,0 +1,40 @@
+{
+  "db": {
+    "nodes": {
+      "NODE-0": {
+        "connectionLimit": 100,
+        "idleTimeoutMillis": 1200,
+        "waitForConnections": true,
+        "host": "low.stargt.com.my",
+        "user": "stargame",
+        "password": "5a13aff6aaca4ce0690902e3d78d8cdc932ffccb",
+        "database": "stargame_bigtwo_v2",
+        "dateStrings": true
+      }
+    },
+    "thirdpartydb": "scr8"
+  },
+  "redis": {
+    "options" : {
+      "host": "127.0.0.1",
+      "port": 6379,
+      "db": 0,
+      "sentinels": [{"host": "127.0.0.1", "port": 26379}],
+      "name": "mymaster",
+      "connectTimeout": 1000
+    }
+  },
+  "preseat": {
+    "check": false,
+    "expired": 120000
+  },
+  "sms": {
+    "send": false
+  },
+  "exec":{
+    "addrule":"/var/nodejs/bin/add_rule.sh %s %s",
+    "removerule":"/var/nodejs/bin/remove_rule.sh %s %s",
+    "resetrule":"/var/nodejs/bin/reset_rule.sh %s"
+  },
+  "timezone":"Asia/Kuala_Lumpur"
+}

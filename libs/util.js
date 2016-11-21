@@ -41,15 +41,7 @@ class Util {
 
     static formatDate(date, timezone) {
         if (date instanceof Date) {
-            let options = {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                timeZone: timezone || 'UTC'
-            };
+            let options = {year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: timezone || 'UTC'};
             try {
                 let tz = new Intl.DateTimeFormat('zh-CN', options).format(date);
                 return Util.dateTime(new Date(tz));

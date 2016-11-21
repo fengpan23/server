@@ -70,6 +70,7 @@ class Seat {
         for(let key in d){
             seat[TABLE + '_' + key.toLowerCase()] = d[key];
         }
+
         return db.update(dbc, TABLE, seat, getCond(params));
     }
 }

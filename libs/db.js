@@ -1,7 +1,6 @@
 /**
  * Created by fp on 2016/10/13.
  */
-"use strict";
 const _ = require('underscore');
 const mysql = require('mysql');
 const common = require('common');
@@ -16,7 +15,7 @@ class DB {
                 function q(){
                     dbc.query(sql, (err, result) => {
                         if(err){
-                            console.error('sql:', sql);
+                            console.error('db query sql:', sql);
                             reject(err)
                         } else {
                             if (!result && isSelect && times++ < 3){

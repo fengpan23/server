@@ -29,14 +29,12 @@ class Agency{
      * @param ids {String} up line ids
      */
     static getPercentage(dbc, ids) {
-        return new Promise((resolve, reject) => {
-            db.select(dbc, TABLE, ['agency_id', 'agency_percentage'], [{"agency_id": {"IN": ids}}], {agency_id: "DESC"}).then(result => {
-                let map = new Map();
-                for (let ap of result) {
-                    map.set(ap.agency_id, ap.agency_percentage)
-                }
-                resolve(map);
-            }).catch(reject)
+        db.select(dbc, TABLE, ['agency_id', 'agency_percentage'], [{"agency_id": {"IN": ids}}], {agency_id: "DESC"}).then(result => {
+            let map = new Map();
+            for (let ap of result) {
+                map.set(ap.agency_id, ap.agency_percentage)
+            }
+            Promise.resolve(map);
         });
     }
 

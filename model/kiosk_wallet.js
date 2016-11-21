@@ -17,22 +17,17 @@ function getCond(params) {
 }
 
 class Wallet{
-    getkioskwalletforupdate(dbc, kioskid, wallet, ptype) {
-        return new Promise(function (resolve, reject) {
-            let sql = `select * from ${tablename} where kiosk_wallet_kioskid=${kioskid} `;
-            sql += ` and kiosk_wallet_ptype='${ptype}' `;
-            sql += ` and kiosk_wallet_name='${wallet}' `;
-            sql += "limit 1 for update";
-            DB.query(dbc, sql).then(function (res) {
-                resolve(res[0]);
-            }).catch(function(err){
-                reject(err);
-            });
-        });
+    /**
+     * @param dbc
+     * @param params {Object}   {kioskId,  wallet, ptype}
+     * @returns {*}
+     */
+    static getForUpdate(dbc, params) {
+        return DB.oneForUpdate(dbc, TABLE, '*', Util.getCond(TABLE, params));
     }
 
     static update(dbc, data, id){
-        data.kiosk_wallet_updated = common.datetimezoneformat(new Date(), config.envconf().timezone);
+        data.kiosk_wallet_updated = Util.formatDate(new Date(), process.env.TIMEZONE);
         return DB.update(dbc, TABLE, data, [{kiosk_wallet_id: id}]);
     }
 

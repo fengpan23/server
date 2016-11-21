@@ -9,6 +9,7 @@ const Events = require('events');
 const Log = require('log')({env: 'develop', singleton: true});   //create singleton log
 const Engine = require('engine');
 
+const DB = require('./module/db');
 const API = require('./module/api');
 const Game = require('./module/game');
 const Config = require('./module/config');
@@ -18,10 +19,11 @@ class Server extends Events {
     /**
      * init game server
      * @param options  {object}   {
+     *                  deposit: Boolean
      *                  infirm: Boolean,     true相同账号登录被强退
      *                  tableId: Number,
      *                  api: {join: Func， seat: Func, ....}
- *                  }
+     *             }
      */
     constructor(options) {
         super();
@@ -40,17 +42,20 @@ class Server extends Events {
             }
         });
 
-        this._game = new Game({nodes: this._config.get('db.nodes'), cluster: this._config.get('cluster')});
+        this._db = new DB({nodes: this._config.get('db.nodes'), cluster: this._config.get('cluster')});
+
+        this._game = new Game(this._db);
         this._game.init(_.pick(options, 'tableId')).then(res => {
             this._engine.start(_.extend({type: 'net'},  _.pick(res, 'port', 'ip')));      //port and ip to create socket server  default port:2323, ip:localhost
-
             this._api.start(res.port - 10000 || 10000);
         }).catch(e => {
+            this._game.exit();
             Log.error('Game init error server.game.init: ', e);
         });
 
         this._players = new Map();
-        process.env.TIMEZONE =
+
+        process.env.TIMEZONE = this._config.get('timezone');
         process.on('uncaughtException', err => {
             console.error('server uncaughtException', err);
         });
@@ -98,8 +103,6 @@ class Server extends Events {
         }
     }
 
-
-
     broadcast(event, content){
         let data = _.extend({event: event}, content);
         if(data.event){
@@ -107,6 +110,11 @@ class Server extends Events {
         }else{
             throw new Error('empty event param !!!');
         }
+    }
+
+    createModule(moduleName){
+        let Module = require('./module/' + moduleName);
+        return new Module(this._db);
     }
 }
 

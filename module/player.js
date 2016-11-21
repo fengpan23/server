@@ -57,52 +57,57 @@ class Player {
     init(dbc, options){
         let opt = _.pick(_.omit(options, v => !v), 'id', 'session');
         if(_.isEmpty(opt))
-            return Promise.reject({code: 'invalid_params', message: options});
+            return Promise.reject({code: 'invalid_params', message: 'player init options: ' + JSON.stringify(options)});
         return Kiosk.get(dbc, opt).then(kiosk => {
             this._status = 'auth';
-            if(kiosk){
+            if(!_.isEmpty(kiosk)){
                 if(kiosk.status !== 1)
                     return Promise.reject({code: 'invalid_user', message: 'kiosk is not active on player.init'});
                 return Promise.resolve(this._kiosk = kiosk);
             }
-            return Promise.reject({code: 'unknown_session', message: 'cat not get kiosk by session on player.init'});
+            return Promise.reject({code: 'unknown_session', message: 'Empty kiosk by options: ' + JSON.stringify(options) + ' on player.init'});
         });
     }
 
     load(dbc, options){
-        return Kiosk.get(dbc, {id: this._kiosk.id, session: this._kiosk.session}).then(kiosk => {
-                if (_.isEmpty(kiosk))
-                    return Promise.reject({code: 'unknown_session', message: 'cat not get kiosk on kiosk.load'});
-                if (kiosk.status !== 1)
-                    return Promise.reject({code: 'invalid_user', message: 'kiosk is not active on player.load'});
-
-                this._kiosk = kiosk;
-                return Wallet.get(dbc, {kioskId: kiosk.id, pType: options.pType, name: options.walletType || 'main'});
-            }).then(wallet => {
-                if (_.isEmpty(wallet))
-                    return Promise.reject({code: 'insufficient_fund', message: 'cat not get wallet on kiosk.load'});
-
-                this._wallet = wallet;
-                return Agency.get(dbc, {agencyId: this._kiosk.agencyid});
-            }).then(agency => {
-                if (_.isEmpty(agency))
-                    return Promise.reject({code: 'invalid_params', message: 'cat not get agency by kiosk_agencyid on kiosk.reload'});
-
-                this._agency = agency;
-                let poolAgentId = (agency['follow_top_agentpool'] === 'Y'  && agency['top_agencyid'] <= 0) ? agency.id : agency['top_agencyid'];
-
-                if ((options.agentId === 0 && options.topAgentId === agency['top_agencyid']) || poolAgentId === options.poolAgentId) {
-                    let structure = typeof agency['upline_structure'] === 'string' ? agency['upline_structure'].split(',') : [];
-                    structure.push(agency.id);
-                    return AgencySuspend.getCount(dbc, structure);
-                } else
-                    return Promise.reject({code: 'agent_suspended', message: 'agency is not active on kiosk.load'});
-            }).then(count => {
-                if (count > 0)
-                    return Promise.reject({code: 'agent_suspended', message: 'there are agency suspend on kiosk.load'});
-                else
-                    return Promise.resolve(count);
+        return this.init(dbc, {id: this._kiosk.id, session: this._kiosk.session})
+            .then(() => {
+                return this.loadWallet(dbc, options);
+            })
+            .then(() => {
+                return this.loadAgency(dbc, options);
             });
+    }
+
+    loadWallet(dbc, options){
+        return Wallet.get(dbc, {kioskId: this._kiosk.id, pType: options.pType, name: options.walletType || 'main'}).then(wallet => {
+            if (_.isEmpty(wallet))
+                return Promise.reject({code: 'insufficient_fund', message: 'cat not get wallet on kiosk.load'});
+
+            Promise.resolve(this._wallet = wallet);
+        });
+    }
+
+    loadAgency(dbc, options){
+        return Agency.get(dbc, {agencyId: this._kiosk.agencyid}).then(agency => {
+            if (_.isEmpty(agency))
+                return Promise.reject({code: 'invalid_params', message: 'cat not get agency by kiosk_agencyid on kiosk.reload'});
+
+            this._agency = agency;
+            let poolAgentId = (agency['follow_top_agentpool'] === 'Y'  && agency['top_agencyid'] <= 0) ? agency.id : agency['top_agencyid'];
+
+            if ((options.agentId === 0 && options.topAgentId === agency['top_agencyid']) || poolAgentId === options.poolAgentId) {
+                let structure = typeof agency['upline_structure'] === 'string' ? agency['upline_structure'].split(',') : [];
+                structure.push(agency.id);
+                return AgencySuspend.getCount(dbc, structure);
+            } else
+                return Promise.reject({code: 'agent_suspended', message: 'agency is not active on kiosk.load'});
+        }).then(count => {
+            if (count > 0)
+                return Promise.reject({code: 'agent_suspended', message: 'there are agency suspend on kiosk.load'});
+            else
+                return Promise.resolve(count);
+        });
     }
 
     /**

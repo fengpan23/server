@@ -2,7 +2,6 @@
  * Created by fp on 2016/10/13.
  */
 
-const Log = require('log')();
 const Server = require('./server');
 const STATUS = {exit: -1, init: 1, opened: 3, closed: 5, unlock: 9, locked: 10};
 
@@ -60,6 +59,8 @@ class Index extends Server{
      * @returns {*}
      */
     open(){
+        if(this._status === STATUS.locked)
+            return Promise.reject({code: 'invalid_call', message: 'server id locked on open'});
         if (this._game.id)       // 校验 ‘游戏是否正在暂停’ ||  ‘游戏是否已开场’
             return Promise.reject({code: 'invalid_call', message: 'match is already opened on engine.open'});
 
@@ -81,7 +82,7 @@ class Index extends Server{
         //     return Promise.reject(new wrong("error", "invalid_action", 'staketotal is not equal wintotal on engine.MatchClose'));
         // }
         if(this._status === STATUS.locked)
-            return Promise.reject({code: 'invalid_call', message: 'server id locked in close'});
+            return Promise.reject({code: 'invalid_call', message: 'server id locked on close'});
 
         this._status = STATUS.locked;
         let players = [...this._players.values()];

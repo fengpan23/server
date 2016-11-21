@@ -6,24 +6,22 @@ const _ = require('underscore');
 const Table = require('../model/table');
 const Room = require('../model/room');
 const Match = require('../model/match');
-const Agency = require('../model/agency');
 const AgencyGame = require('../model/agency_game');
-const AgencySuspend = require('../model/agency_suspend');
 
-const DB = require('./db');
 const Seats = require('./seats');
 const Profile = require('./profile');
 
 class G{
-    constructor(options){
+    constructor(db){
         this._id = null;
         this._table = {};
 
         this._seats = new Seats();
         this._profile = new Profile();
 
-        this._db = new DB(_.pick(options, 'cluster', 'nodes'));
+        this._db = db;
     }
+
     get id(){
         return this._id;
     }
@@ -42,6 +40,7 @@ class G{
                     this._table.status = 1;
                     return Table.update(dbc, {tableId: this._table.id}, {curkiosk: 0, status: 1});
                 }
+                return Promise.resolve();
             }).then(() => {
                 return this._db.over(dbc);
             }).catch(e => {
@@ -66,27 +65,18 @@ class G{
         if(player.status !== 'auth')
             return Promise.reject(`player status ${player.status} error on game.login`);
 
+        let opt = {
+            agentId: this._table.agentid,
+            topAgentId: this._table.topagentid,
+            poolAgentId: this._table.poolagentid
+        };
         return this._db.begin().then(dbc =>
-            new Promise((resolve, reject) => {
-                Agency.get(dbc, {agencyId: player.get('kiosk').agencyid}).then(agency => {
-                    let poolAgentId = agency.follow_top_agentpool === 'Y' ? (agency.top_agencyid <= 0 ? agency.id : agency.top_agencyid) : agency.id;
-                    if ((this._table.agentid === 0 && this._table.topagentid === agency.top_agencyid) || poolAgentId === this._table.poolagentid) {
-
-                        let structure = (typeof agency.upline_structure === 'string') ? agency.upline_structure.split(",") : [];
-                        structure.push(agency.id);
-                        return AgencySuspend.getCount(dbc, structure);
-                    } else
-                        reject('agency is not active on game.login');
-                }).then(count => {
-                    if (count > 0)
-                        reject('agent_suspended, there are agency suspend on game.login');
-                    else
-                        return this._db.over(dbc).then(() => {
-                            resolve(player);
-                        });
-                }).catch(e => {
-                    this._db.close(dbc).then(() => reject(e)).catch(reject)
-                });
+            player.loadAgency(dbc, opt)
+            .then(() => {
+                return this._db.over(dbc).then(() => Promise.resolve(player));
+            })
+            .catch(e => {
+                return this._db.close(dbc).then(() => Promise.reject(e));
             })
         );
     }
@@ -94,57 +84,61 @@ class G{
     /**
      *  player have seat
      * @param player
-     * @param opt
+     * @param options
      * @return {Promise.<TResult>}
      */
-    seat(player, opt){
+    seat(player, options){
         if(player.status !== 'login')
-            return Promise.reject(`player status ${player.status} error on game.seat`);
+            return Promise.reject({code: 'invalid_call', message: `player status ${player.status} error on game.seat.`});
 
-        return this._db.begin().then(dbc =>
-            new Promise((resolve, reject) => {
-                let options = _.extend({
-                    tableId: this._table.id,
-                    gameId: this._table.gameid,
-                    kioskId: player.id
-                }, _.pick(opt, 'index', 'ip', 'port'));
+        return this._db.begin().then(dbc => {
+            let opt = _.extend({
+                tableId: this._table.id,
+                gameId: this._table.gameid,
+                kioskId: player.id
+            }, _.pick(options, 'index', 'ip', 'port'));
 
-                let seatIndex = options.index;
-                this._seats.choose(dbc, options).then(res => {
-                    seatIndex = res.index;
-                    return Table.update(dbc, _.pick(options, 'tableId', 'gameId'), {curkiosk: res.cur});
-                }).then(() => {
-                    return this._db.over(dbc).then(() => {
-                        resolve(seatIndex);
-                    });
-                }).catch(e => {
-                    this._db.close(dbc).then(() => reject(e)).catch(reject)
-                });
-            }
-        ).then(seatIndex => {
-            return Promise.resolve(seatIndex);
-        }));
-    }
+            let seatIndex = opt.index;
 
-    leave(player){
-        return this._db.begin().then(dbc =>
-            new Promise((resolve, reject) => {
-                let params = {tableId: this._table.id, gameId: this._table.gameid, kioskId: player.id, seatIndex: player.index};
-                this._seats.leave(dbc, params).then(cur => {
-                    return Table.update(dbc, _.pick(params, 'tableId', 'gameId'), {curkiosk: cur});
-                }).then(() => {
-                    return this._db.over(dbc).then(() => {
-                        resolve(player);
-                    });
-                }).catch(e => {
-                    this._db.close(dbc).then(() => reject(e)).catch(reject);
-                });
-            })
-        ).then(p => {
-            return Promise.resolve(p);
+            return this._seats.choose(dbc, opt).then(res => {
+                seatIndex = res.index;
+                return Table.update(dbc, _.pick(opt, 'tableId', 'gameId'), {curkiosk: res.cur});
+            }).then(() => {
+                return this._db.over(dbc).then(() => Promise.resolve(seatIndex));
+            }).catch(e => {
+                return this._db.close(dbc).then(() => Promise.reject(e))
+            });
         });
     }
 
+    /**
+     * player leave game
+     * @param player
+     * @returns {Promise.<TResult>}
+     */
+    leave(player){
+        return this._db.begin().then(dbc => {
+            let params = {
+                tableId: this._table.id,
+                gameId: this._table.gameid,
+                kioskId: player.id,
+                seatIndex: player.index
+            };
+            return this._seats.leave(dbc, params).then(cur => {
+                return Table.update(dbc, _.pick(params, 'tableId', 'gameId'), {curkiosk: cur});
+            }).then(() => {
+                return this._db.over(dbc).then(() => Promise.resolve(player));
+            }).catch(e => {
+                return this._db.close(dbc).then(() => Promise.reject(e));
+            });
+        });
+    }
+
+    /**
+     * start game
+     * @param players
+     * @returns {*}
+     */
     start(players){
         if (this._table.status === 0) {     // 检查桌子是否激活
             return Promise.reject({code: 'system_maintenance', message: 'Table is not active status on game.start'});
@@ -193,6 +187,11 @@ class G{
         );
     }
 
+    /**
+     * end game and save game record
+     * @param players
+     * @returns {*|Promise.<TResult>}
+     */
     over(players){
         return this._db.begin().then(dbc =>
             Promise.all(players.map(player => player.close(dbc))).then(() => {
@@ -216,21 +215,23 @@ class G{
         );
     }
 
+    exit(){
+    //    TODO: exit game remove seat at game multiplayer seat table
+    }
+
     /**
      * auth player
      * @param player
-     * @param opt   {Object}    {session: String, id: Number}
+     * @param options   {Object}    {session: String, id: Number}
      * @returns {*}
      */
-    auth(player, opt){
+    auth(player, options){
         if(player.id)return Promise.resolve({status: 'ok'});
 
         return this._db.begin().then(dbc =>
-            new Promise((resolve, reject) => {
-                player.init(dbc, opt)
-                .then(kiosk => this._db.over(dbc).then(() => resolve({status: 'ok', repeat: this._seats.has(player.id)})))
-                .catch(e => this._db.close(dbc).then(() => reject(e)).catch(reject))
-            })
+            player.init(dbc, options)
+            .then(kiosk => this._db.over(dbc).then(() => Promise.resolve({status: 'ok', repeat: this._seats.has(player.id)})))
+            .catch(e => this._db.close(dbc).then(() => Promise.reject(e)))
         );
     }
 

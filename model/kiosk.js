@@ -32,49 +32,21 @@ class Kiosk{
     /**
      * 锁定用户行(for update)
      * @param dbc
-     * @param client
+     * @param params    {Object} {kioskId: Number, session: String}
      */
-    static getkioskforupdate(dbc, kioskid, session) {
-        return new Promise(function (resolve, reject) {
-            let sql = `select * from ${tablename} where kiosk_id= ${kioskid} `;
-            if (!!session)
-                sql += ` and kiosk_session='${session}' `;
-            sql += "limit 1 for update";
-            db.query(dbc, sql).then(function (res) {
-                return Promise.resolve(res);
-            }).then(function (res) {
-                if (common.empty(res[0])) {
-                    return db.query(dbc, sql)
-                } else {
-                    return Promise.resolve(res);
-                }
-            }).then(function (res) {
-                if (common.empty(res[0])) {
-                    return db.query(dbc, sql)
-                } else {
-                    return Promise.resolve(res);
-                }
-            }).then(function (res) {
-                resolve(res[0]);
-            }).catch(function (err) {
-                reject(err);
-            });
-        });
+    static getForUpdate(dbc, params) {
+        return db.oneForUpdate(dbc, TABLE, '*', Util.getCond(TABLE, params));
     }
 
 
     /**
      * 更新用户余额
      * @param dbc
-     * @param kiosk
-     * @param amount
+     * @param kioskId
+     * @param data
      */
-    static updateBalance(dbc, kiosk, amount, ptype) {
-        let cond = [{"kiosk_id": kiosk.kiosk_id}];
-        let data = {};
-        let pointname = ptype ? profile.getpointname(ptype) : profile.getpointname();
-        data[pointname] = kiosk[pointname] + amount;
-        return db.update(dbc, tablename, data, cond);
+    static updateBalance(dbc, kioskId, data) {
+        return db.update(dbc, TABLE, Util.format(TABLE, data, true), [{"kiosk_id": kioskId}]);
     }
 }
 

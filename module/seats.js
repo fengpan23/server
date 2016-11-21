@@ -2,6 +2,7 @@
  * Created by fp on 2016/10/21.
  */
 const _ = require('underscore');
+const Util = require('../libs/util');
 const Seat = require('../model/seat');
 
 class Seats {
@@ -41,12 +42,11 @@ class Seats {
 
                 let insert = [];
                 let fields = ['index', 'agentid', 'gameid', 'roomid', 'tableid', 'state', 'kioskid', 'updated', 'created'];
-                // let now = common.datetimezoneformat(new Date(), configs.envconf().timezone);
-                let now = +new Date();
+                let now = Util.formatDate(new Date(), process.env.TIMEZONE);
 
                 for (let i = 1; i <= table.maxkiosk; i++) {
-                    if (seats[i] != 'empty') {
-                        insert.push([i, table.agentid, table.gameid, table.roomid, table.tableid, 'idle', null, now, now]);
+                    if (_.isEmpty(seats[i - 1])) {
+                        insert.push([i, table.agentid, table.gameid, table.roomid, table.id, 'idle', 0, now, now]);
                         this._seats.set(i, {status: 'empty'});
                     }
                 }
@@ -83,6 +83,7 @@ class Seats {
                 }
             }
         }
+
         if(!seatIndex)
             return Promise.reject({code: 'invalid_action', message: opt.index ? 'seat: ' + opt.index + ' has already be sit.' : 'have no seat to choose.'});
 
@@ -90,6 +91,7 @@ class Seats {
         params.seatindex = seatIndex;
 
         let data = _.pick(opt, 'kioskid', 'ip', 'port');
+
         return Seat.update(dbc, params, data).then(() => {
             this._seats.set(seatIndex, {status: 'seated', kioskId: opt.kioskId});
 
