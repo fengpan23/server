@@ -11,7 +11,7 @@ class Member {
     constructor() {}
 
     static get(dbc, params) {
-        return DB.one(dbc, TABLE, "*", Util.getCond(TABLE, params));
+        return DB.one(dbc, TABLE, "*", Util.getCond(TABLE, params)).then(res => Promise.resolve(Util.format(TABLE, res)));
     }
 }
 

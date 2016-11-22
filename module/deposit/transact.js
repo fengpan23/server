@@ -4,6 +4,7 @@
 
 const _ = require('underscore');
 const KioskWallet = require('../../model/kiosk_wallet');
+const KioskWalletTrx = require('../../model/kiosk_wallet_trx');
 
 class Transact {
     constructor() {}
@@ -225,67 +226,26 @@ class Transact {
     }
 
     addTransaction(dbc, options) {
-        // let ptype = profile.getptype();
-        // let wallet = profile.getwallettype();
-
-        // if (amount === 0) {
-        //     return kioskmodel.getkiosk(dbc, {id: kioskid}).then(function (_kiosk) {
-        //         if (common.empty(_kiosk))
-        //             return Promise.reject(new wrong('error', 'unexpected_error', 'kiosk is empty on kiosktransaction.addtransaction'));
-        //         result.kiosk = common.clone(_kiosk);
-        //         return kioskwalletmodel.getwallet(dbc, {
-        //             kioskid: kioskid,
-        //             ptype: ptype,
-        //             name: wallet
-        //         });
-        //     }).then(function (_wallet) {
-        //         if (common.empty(_wallet))
-        //             return Promise.reject(new wrong('error', 'insufficient_fund', 'wallet is empty on kiosktransaction.addtransaction'));
-        //         result.wallet = common.clone(_wallet);
-        //         return Promise.resolve(result);
-        //     });
-        // }
-
-        // if (trxtype === 4 && common.empty(matchid))
-        //     return Promise.reject(new wrong('error', 'invalid_params', 'no MatchID on kiosktransaction.addtransaction'));
-        //
-        // let balance = 0;
-        return KioskWallet.getForUpdate(dbc, _.pick(options, 'kioskId', 'wallet', 'ptype'))
-            .then(wallet => {
-                console.log('wallet: ', wallet);
-                let balance = common.tonumber(_wallet['kiosk_wallet_balance'] + amount);
+        return KioskWallet.getForUpdate(dbc, _.pick(options, 'kioskId', 'name', 'pType')).then(wallet => {
+                let balance = wallet.balance + options.amount;
                 if (balance < 0)
-                    return Promise.reject(new wrong('error', 'insufficient_fund', 'insufficient_fund on kiosktransaction.addtransaction'));
+                    return Promise.reject({code: 'insufficient_fund', message: `balance: ${wallet.balance} options.amount: ${options.amount} on addTransact`});
 
-                if (amount < 0 && trxtype === 4) {//rolling
-                    let subrolling = Math.abs(amount);
-                    result.wallet['kiosk_wallet_rolling'] = result.wallet['kiosk_wallet_rolling'] > subrolling ? result.wallet['kiosk_wallet_rolling'] - subrolling : 0;
-                    if (result.wallet['kiosk_wallet_name'] !== 'main')
-                        result.wallet['kiosk_wallet_rolledout'] += subrolling;
-                }
-                let wallettrx = {
-                    agencyid: result.kiosk.kiosk_agencyid,
-                    kioskid: kioskid,
-                    kiosktype: result.kiosk.kiosk_type,
-                    trxtype: trxtype,
-                    ptype: ptype,
-                    name: wallet,
-                    gameid: gameprofile.id,
-                    matchid: matchid,
-                    openbal: result.wallet['kiosk_wallet_balance'],
-                    amount: amount,
-                    closebal: balance,
-                    refund: refund,
-                    jptype: jptype
-                };
-                return kioskwallettrxmodel.addkioskwallettrx(dbc, wallettrx);
-            }).then(function () {
-                //if (balance < (common.tonumber(gameprofile.setting.wallet_clearrolling_minamt) || 10))
-                //    result.wallet['kiosk_wallet_rolling'] = 0;
-                result.wallet['kiosk_wallet_balance'] = balance;
-                return kioskwalletmodel.update(dbc, result.wallet, result.wallet['kiosk_wallet_id']);
-            }).then(function () {
-                resolve(result);
+                let trx = _.pick(options, 'agencyId', 'kioskId', 'gameId', 'matchId', 'pType', 'name', 'amount', 'refund', 'jpType', 'type', 'kioskType');
+                trx.openbal = wallet.balance;
+                trx.closebal = balance;
+
+                return KioskWalletTrx.add(dbc, trx).then(() => {
+
+                    if (options.amount < 0 && options.type === 4) {         //rolling
+                        let sub = Math.abs(options.amount);
+                        wallet.rolling = wallet.rolling > sub ? wallet.rolling - sub : 0;
+                        if (wallet.name !== 'main')
+                            wallet.rolledout += sub;
+                    }
+                    wallet.balance = balance;
+                    return KioskWallet.update(dbc, wallet, wallet.id).then(() => Promise.resolve(wallet));
+                });
             });
     }
 

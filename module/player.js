@@ -23,7 +23,13 @@ class Player {
         return Object.assign({}, this._kiosk);
     }
     get username(){
-        return this._kiosk.username;
+        let agencyName = this._agency.username;
+        let name = this._kiosk.username || 'anonymous';
+        if (name.startsWith(agencyName))
+            name = name.substr(agencyName.length);
+        else if (name !== 'anonymous' && name.length > 4)
+            name = name.substr(-4);
+        return name;
     }
     get balance(){
         return this._kiosk && this._kiosk['balance_a'];

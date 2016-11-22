@@ -168,9 +168,9 @@ class DB {
     }
 
     delete(connection, table, condition, order, limit) {
-        if (table && condition)
+        if (table && condition) {
             return this.query(connection, getDeleteSql(table, condition, order, limit));
-        else
+        }else
             return Promise.reject('param invalid on db.delete');
     }
 

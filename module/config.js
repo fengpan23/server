@@ -21,6 +21,7 @@ class Config {
     }
 
     load(dir, fileName) {
+        // Log.info('config file path: ', path.join(dir, fileName));
         let file = fs.readFileSync(path.join(__dirname, dir, fileName), "utf8");
         try {
             file = JSON.parse(file);

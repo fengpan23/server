@@ -127,7 +127,7 @@ class G{
             return this._seats.leave(dbc, params).then(cur => {
                 return Table.update(dbc, _.pick(params, 'tableId', 'gameId'), {curkiosk: cur});
             }).then(() => {
-                return this._db.over(dbc).then(() => Promise.resolve(player));
+                return this._db.over(dbc);
             }).catch(e => {
                 return this._db.close(dbc).then(() => Promise.reject(e));
             });

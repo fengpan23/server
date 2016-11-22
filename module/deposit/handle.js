@@ -3,6 +3,8 @@
  */
 const _ = require('underscore');
 const Deposit = require('../../model/deposit');
+const Member = require('../../model/kiosk_member');
+const AgencyTrx = require('../../model/agency_trx');
 const Transact = require('./transact');
 
 class Handle{
@@ -14,53 +16,55 @@ class Handle{
                 let data = _.pick(options, 'gameId', 'tableId', 'agencyId', 'kioskId',  'pType', 'amount');
                 data.status = 0;
 
-                return Deposit.insert(dbc, data);
+                return Deposit.insert(dbc, data).then(() => Promise.resolve(options.amount));
             } else if (res.tableid !== options.tableId) {
                 return Promise.reject({code: 'invalid_action', message: 'There is deposit in other table on deposit.buy'});
             } else if (res.status === 2) {
                 return Promise.reject({code: 'invalid_params', message: 'deposit status is 2 on deposit.buy'});
             } else {
                 let cond = _.pick(options, 'tableId', 'gameId', 'kioskId');
-                return Deposit.update(dbc, cond, {amount: options.amount || 0}).then(balance => {
-                    return Promise.resolve(balance);
+                let balance = res.amount + options.amount;
+                return Deposit.update(dbc, cond, {amount: balance}).then(() => Promise.resolve(balance));
+            }
+        }).then(balance => {
+            let opt = {trxType: 9, balance: balance, amount: (-1) * options.amount};
+            return this._tran(dbc, _.extend(options, opt)).then(() => Promise.resolve(balance));
+        });
+    }
+
+    refund(dbc, options){
+        return Deposit.one(dbc, _.pick(options, 'gameId', 'kioskId', 'tableId')).then(deposit => {
+            if(_.isEmpty(deposit)){
+                return Promise.resolve();
+            }else if(deposit.status !== 1){
+                return Deposit.remove(dbc, {id: deposit.id}).then(() => {
+                    let opt = {amount: -deposit.amount, trxType: 10, balance: 0};
+                    return this._tran(dbc, _.extend(options, opt));
                 });
             }
-        }).then(() => {
-            let amount = +options.amount;
-            return Transact.addTransaction(dbc, client.kiosk.kiosk_id, gameprofile, 0, (-1) * amount, 0, 0, 9);
-        }).then(function (trx) {
-            if (!common.empty(trx.kiosk)) client.kiosk = common.clone(trx.kiosk);
-            if (!common.empty(trx.wallet)) client.wallet = common.clone(trx.wallet);
-            return kioskmembermodel.getkioskmember(dbc, client.kiosk);
-        }).then(function (kioskmember) {
-            if (common.empty(kioskmember))
-                kioskmember = {
-                    kiosk_member_memberid: 0,
-                    kiosk_member_affiliateid: 0
-                };
-            let data = {
-                agentid: client.kiosk.kiosk_agencyid,
-                kioskid: client.kiosk.kiosk_id,
-                gameid: table.gameid,
-                matchid: 0,
-                gamematchid: table.matchid || 0,
-                memberid: kioskmember.kiosk_member_memberid,
-                affiliateid: kioskmember.kiosk_member_affiliateid,
-                ptype: profile.getptype(),
-                trxtype: 1,
-                total: amount,
-                current: amount,
-                protect: 0,
-                balance: depositbalance,
-                created: ktrxtime
-            };
-            return gameagenttransmodel.addtrans(dbc, data);
-        }).then(function () {
-            resolve(depositbalance);
-        }).catch(function (err) {
-            console.error(err);
+        });
+    }
+
+    _tran(dbc, options){
+        let opt = _.pick(options, 'kioskId', 'gameId', 'name', 'pType', 'trxType');
+        opt.jpType = opt.refund = opt.matchId = 0;
+        return Transact.addTransaction(dbc, opt).then(wallet => {
+            // console.log('wallet: ', wallet);
+            return Member.get(dbc, {kioskId: options.kioskId});
+        }).then(member => {
+            let opt = _.pick(options, 'agentId', 'kioskId', 'gameId', 'pType', 'trxType', 'balance', 'protect');
+            opt.agentid = options.agencyId;
+            opt.matchid = 0;
+            opt.gamematchid = options.matchId || 0;
+            opt.memberid = member.memberid || 0;
+            opt.affiliateid = member.affiliateid || 0;
+            opt.total = opt.current = options.amount;
+            opt.protect = opt.protect ||0;
+
+            return AgencyTrx.add(dbc, opt);
         });
     }
 }
+
 
 module.exports = new Handle();

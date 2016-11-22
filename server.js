@@ -32,13 +32,14 @@ class Server extends Events {
 
         this._engine = new Engine();
         this._engine.on('request', this._createBindFunc(options).bind(this)).on('disconnect', id => {
-            if(this.players.has(id)){
+            if(this._players.has(id)){
                 let api = options.api &&  options.api.disconnect;
+                let player = this._players.get(id);
                 if(api){
-                    Common.invokeCallback(options.api, api, this.players.get(id));
+                    Common.invokeCallback(options.api, api, player);
                 }
                 // this.players.delete(id)
-                // this.emit('disconnect', id);
+                this.emit('disconnect', player);
             }
         });
 
@@ -61,6 +62,12 @@ class Server extends Events {
         });
     };
 
+    get db(){
+        return this._db;
+    }
+    get config(){
+        return this._config;
+    }
     get players(){
         return this._players;
     }
@@ -114,7 +121,7 @@ class Server extends Events {
 
     createModule(moduleName){
         let Module = require('./module/' + moduleName);
-        return new Module(this._db);
+        return new Module(this);
     }
 }
 

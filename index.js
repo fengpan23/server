@@ -46,7 +46,7 @@ class Index extends Server{
            return this._game.seat(player, Object.assign({index: seatIndex}, client.remote)).then(index => {
                 player.set('index', index);
                 player.status = 'seat';
-                return this._unlock(player, 'seat');
+                return this._unlock(player, 'seat').then(() => Promise.resolve(index));
             }).catch(e => {
                 this._unlock(player, 'seat');
                 return Promise.reject(e);
@@ -77,6 +77,32 @@ class Index extends Server{
         });
     }
 
+    /**
+     * player quit  玩家退出游戏，返回玩家买入金额，释放座位（如果已经坐下）
+     * @param player
+     */
+    quit(player){
+        return this._lock(player, 'quit').then(() =>
+            this._game.leave(player).then(() => {
+                this._players.delete(player.clientId);
+                if (this._game.id) {
+                    // return player.leave(request, me.gameprofile, me.table, me.depositbalance.get(kiosk.kiosk_id) || 0);
+                } else {
+                    return Promise.resolve();
+                }
+            }).then(() => {
+                return this._unlock(player, 'seat');
+            })
+        ).catch(e => {
+            this._unlock(player, 'seat');
+            return Promise.reject(e);
+        });
+    };
+
+    /**
+     * close this server
+     * @returns {*}
+     */
     close(){
         // if (this.options.deposit && me.getdepositstake() !== me.getdepositwin()) {
         //     return Promise.reject(new wrong("error", "invalid_action", 'staketotal is not equal wintotal on engine.MatchClose'));
@@ -94,37 +120,6 @@ class Index extends Server{
             return Promise.reject(e);
         });
     }
-
-    /**
-     * player quit  玩家退出游戏，返回玩家买入金额，释放座位（如果已经坐下）
-     * @param player
-     */
-    quit(player){
-        return this._lock(player, 'quit').then(() =>
-            this._game.leave(player).then(() => {
-                this._players.delete(player.clientId);
-                if (this._game.id) {
-                    // return player.leave(request, me.gameprofile, me.table, me.depositbalance.get(kiosk.kiosk_id) || 0);
-                } else {
-                    return Promise.resolve();
-                }
-            }).then(() => {
-                // if (this.options.deposit) {
-                //     request.once('afterclose', function (error) {
-                //         if (!error) me.depositbalance.delete(kiosk.kiosk_id);
-                //     });
-                //     return gamematch.refund(request.dbc, me.table, me.gameprofile, kiosk.kiosk_id);
-                // } else {
-                //     return Promise.resolve();
-                // }
-            }).then(() => {
-                return this._unlock(player, 'seat');
-            })
-        ).catch(e => {
-            this._unlock(player, 'seat');
-            return Promise.reject(e);
-        });
-    };
 
     exit() {
         this._status = STATUS.exit;

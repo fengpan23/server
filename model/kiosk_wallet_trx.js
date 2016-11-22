@@ -2,30 +2,17 @@
  * Created by fp on 2016/11/16.
  */
 
-const Db = require('../libs/db');
+const DB = require('../libs/db');
+const Util = require('../libs/util');
 
 const TABLE = "kiosk_wallet_trx";
 
 class WalletTrx{
+    static add(dbc, data) {
+        let d = Util.format(TABLE, data, true);
+        d.kiosk_wallet_trx_created = Util.formatDate(new Date(), process.env.TIMEZONE);
 
-    addkioskwallettrx(dbc, data) {
-        let trxdata = {
-            kiosk_wallet_trx_agencyid: data.agencyid,
-            kiosk_wallet_trx_kioskid: data.kioskid,
-            kiosk_wallet_trx_kiosktype: data.kiosktype,
-            kiosk_wallet_trx_type: data.trxtype,
-            kiosk_wallet_trx_ptype: data.ptype,
-            kiosk_wallet_trx_name: data.name,
-            kiosk_wallet_trx_gameid: data.gameid,
-            kiosk_wallet_trx_matchid: data.matchid,
-            kiosk_wallet_trx_openbal: data.openbal,
-            kiosk_wallet_trx_amount: data.amount,
-            kiosk_wallet_trx_closebal: data.closebal,
-            kiosk_wallet_trx_refund: data.refund,
-            kiosk_wallet_trx_jptype: data.jptype,
-            kiosk_wallet_trx_created: common.datetimezoneformat(data.created || new Date(), config.envconf().timezone)
-        };
-        return db.insert(dbc, tablename, trxdata);
+        return DB.insert(dbc, TABLE, d);
     }
 
     select(dbc, params){
