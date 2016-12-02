@@ -14,8 +14,15 @@ class D{
             this.out(player);
         });
 
-        this._deposit = {};
+        this._deposit = new Map();
     };
+
+    start(){
+        console.log('deposit start');
+        let players = [...this._server.players.values()];
+        return this.check(players);
+    }
+
 
     /**
      * player buy in
@@ -66,6 +73,25 @@ class D{
         });
     }
 
+    /**
+     * check players deposit amount
+     * @param players
+     * @returns {Promise.<TResult>|*}
+     */
+    check(players){
+        return this._db.begin().then(dbc => {
+            let table = this._server.get('table');
+            let opt = {gameId: table.gameid, tableId: table.id, maxBet: table.maxbet};
+            return handle.check(dbc, players, opt).then(res => {
+                console.log('check res : ', res);
+            }).then(() => {
+                return this._db.over(dbc);
+            }).catch(e => {
+                return this._db.close(dbc).then(() => Promise.reject(e));
+            });
+        });
+    }
+
     balance(){
         ispoint = !!ispoint;
         if (this.depositbalance.has(kioskid)) {
@@ -88,10 +114,6 @@ class D{
         }
 
         return common.tonumber(result);
-    }
-
-    check(players){
-
     }
 }
 

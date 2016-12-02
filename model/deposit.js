@@ -31,7 +31,14 @@ class Deposit {
     }
 
     static select(dbc, params) {
-        return DB.select(dbc, TABLE, '*', Util.getCond(TABLE, params));
+        return DB.select(dbc, TABLE, '*', Util.getCond(TABLE, params)).then(deposits => {
+            let results = new Map();
+            deposits.forEach(d => {
+                let f = Util.format(TABLE, d);
+                results.set(f.kioskid, f);
+            });
+            return Promise.resolve(results);
+        });
     }
 
     static insert(dbc, data) {

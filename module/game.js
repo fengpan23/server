@@ -56,9 +56,6 @@ class G{
     /**
      * verify player
      * @param player  {Player}
-     * @param opt   {object}
-     *          session: String
-     *          clientId: String
      * @returns {Promise.<T>}
      */
     login(player){
@@ -96,7 +93,7 @@ class G{
                 tableId: this._table.id,
                 gameId: this._table.gameid,
                 kioskId: player.id
-            }, _.pick(options, 'index', 'ip', 'port'));
+            }, _.pick(options, 'index', 'ip', 'port', 'adjust'));
 
             let seatIndex = opt.index;
 
@@ -117,12 +114,15 @@ class G{
      * @returns {Promise.<TResult>}
      */
     leave(player){
+        if(!player.index)
+            return Promise.resolve();
+
         return this._db.begin().then(dbc => {
             let params = {
                 tableId: this._table.id,
                 gameId: this._table.gameid,
                 kioskId: player.id,
-                seatIndex: player.index
+                index: player.index
             };
             return this._seats.leave(dbc, params).then(cur => {
                 return Table.update(dbc, _.pick(params, 'tableId', 'gameId'), {curkiosk: cur});
@@ -136,7 +136,7 @@ class G{
 
     /**
      * start game
-     * @param players
+     * @param players   need start players
      * @returns {*}
      */
     start(players){
@@ -149,9 +149,9 @@ class G{
         }
 
         return this._db.begin().then(dbc =>
-            this._init(dbc, {tableId: this._table.id}).then(() => {
+            this._init(dbc, {tableId: this._table.id, reload: true}).then(() => {
                 let params = {agencyId: this._table.top_agentid, gameId: this._profile.game.id, status: 1};
-                console.log('params', params);
+                console.log('game start params', params);
                 return AgencyGame.find(dbc, params);
             }).then(eg => {
                 if (_.isEmpty(eg))
@@ -162,7 +162,7 @@ class G{
                 let data = {lastmatch: +new Date()};
 
                 return Table.update(dbc, params, data).then(() => {
-                    let data = {agentid: this._table.poolagentid, tableid: this._table.tableid, gameid: this._table.gameid, matchstart: +new Date(), state: "open"};
+                    let data = {agentId: this._table.poolagentid, tableId: this._table.tableid, gameId: this._table.gameid, matchStart: +new Date(), state: "open"};
                     return Match.insert(dbc, data)
                 });
             }).then(res => {
@@ -172,15 +172,21 @@ class G{
                     return Promise.reject({code: 'unexpected_error', message: 'add match error, insert not success'});
                 }
                 let opt = {
-                    walletType: this._profile.game['ptype'],
+                    tableId: this._table.id,
+                    gameId: this._table.gameid,
                     pType: this._table.ptype,
                     agentId: this._table.agentid,
                     topAgentId: this._table.topagentid,
-                    poolAgentId: this._table.poolagentid
+                    poolAgentId: this._table.poolagentid,
+                    walletType: this._profile.game['ptype']
                 };
-                return Promise.all(players.map(player => player.load(dbc, opt)));
-            }).then(() => {
-                return this._db.over(dbc);
+                let seats = this._seats.seat;
+
+                return Promise.all(players.map(player => {
+                    return player.open(dbc, _.extend({}, opt, seats[player.index].remote));
+                }));
+            }).then(res => {
+                return this._db.over(dbc).then(() => Promise.resolve(res));
             }).catch(e => {
                 return this._db.close(dbc).then(() => Promise.reject(e));
             })
@@ -246,7 +252,7 @@ class G{
                     });
                 }
 
-                return this._seats.init(dbc, table);
+                return this._seats.init(dbc, table, options.reload);
             }).then(() => {
                 return this._profile.init(dbc, _.pick(this._table, 'gameid', 'topagentid', 'agentid', 'ptype', 'agentid'));
             });

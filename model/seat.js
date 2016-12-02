@@ -44,7 +44,7 @@ class Seat {
      * @param order
      */
     static get(dbc, params, order) {
-        return db.one(dbc, TABLE, '*', getCond(params), order);
+        return db.one(dbc, TABLE, '*', Util.getCond(TABLE, params), order);
     }
 
     /**
@@ -54,7 +54,7 @@ class Seat {
      * @param data
      */
     static insert(dbc, fields, data) {
-        return db.inserts(dbc, TABLE, _.map(fields, field => TABLE + '_' + field), data);
+        return db.inserts(dbc, TABLE, _.map(fields, field => TABLE + '_' + field.toLowerCase()), data);
     }
 
     /**
@@ -64,14 +64,10 @@ class Seat {
      * @param data
      */
     static update(dbc, params, data) {
-        let seat = {[TABLE + '_updated'] : +new Date()};
+        let seat = Util.format(TABLE, data, true);
+        seat[TABLE + '_updated'] = Util.formatDate(new Date(), process.env.TIMEZONE);
 
-        let d = _.pick(data, 'kioskid', 'agentid', 'gameid', 'roomid', 'state', 'ip', 'port');
-        for(let key in d){
-            seat[TABLE + '_' + key.toLowerCase()] = d[key];
-        }
-
-        return db.update(dbc, TABLE, seat, getCond(params));
+        return db.update(dbc, TABLE, seat, Util.getCond(TABLE, params));
     }
 }
 module.exports = Seat;

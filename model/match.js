@@ -9,8 +9,6 @@ const TABLE = 'game_multiplayer_match';
 const TIMEZONE = process.env['TIMEZONE'] || 'Asia/Kuala_Lumpur';
 
 class Match {
-    constructor() {}
-
     static insert(dbc, data) {
         let match = Util.format(TABLE, _.pick(data, 'agentId', 'tableId', 'gameId', 'kioskCount', 'state', 'betTotal',
                                                     'winTotal', 'payout', 'betDetail', 'result', 'updated'), true);

@@ -4,10 +4,14 @@
 const _ = require('underscore');
 const Kiosk = require('../model/kiosk');
 const Agency = require('../model/agency');
+const Member = require('../model/kiosk_member');
+const MemberTrx = require('../model/member_trx');
+const MatchMaster = require('../model/match_master');
+const MatchResult = require('../model/match_result');
 const AgencySuspend = require('../model/agency_suspend');
 const Wallet = require('../model/kiosk_wallet');
 
-const STATUS = {new: 0, auth: 1, init: 3, login: 5, seat: 7, quit: 11};
+const STATUS = {new: 0, auth: 1, init: 3, login: 5, seat: 7, open: 9, quit: 11};
 
 class Player {
     constructor(clientId) {
@@ -19,11 +23,17 @@ class Player {
     get id(){
         return this._kiosk &&　this._kiosk.id
     }
+    get matchId(){      //玩家开场之后产生 match id
+        return this._matchId;
+    }
     get kiosk(){
         return Object.assign({}, this._kiosk);
     }
+    get agency(){
+        return Object.assign({}, this._agency);
+    }
     get username(){
-        let agencyName = this._agency.username;
+        let agencyName = this.agency.username;
         let name = this._kiosk.username || 'anonymous';
         if (name.startsWith(agencyName))
             name = name.substr(agencyName.length);
@@ -75,7 +85,7 @@ class Player {
         });
     }
 
-    load(dbc, options){
+    _load(dbc, options){
         return this.init(dbc, {id: this._kiosk.id, session: this._kiosk.session})
             .then(() => {
                 return this.loadWallet(dbc, options);
@@ -113,6 +123,83 @@ class Player {
                 return Promise.reject({code: 'agent_suspended', message: 'there are agency suspend on kiosk.load'});
             else
                 return Promise.resolve(count);
+        });
+    }
+
+    /**
+     * player start game
+     * @param dbc
+     * @param options
+     * @returns {Promise.<TResult>|*}
+     */
+    open(dbc, options){
+        let match = _.pick(options, 'gameId', 'tableId', 'pType');
+        _.extend(match, {
+            agentId: this._kiosk.agencyid,  kioskId: this.id, kioskType: this._kiosk.type,
+            clientIp: options.ip, bonusId: 0,  mType: "N", openBal: 1, betTotal: 0, winAmt: 0,
+            payout: 0, refund: 0, balance: 0, state: 'play', jType: 0, jAmt: 0,
+            updated: new Date(), created: new Date()
+        });
+
+        return this._load(dbc, options).then(() =>
+            MatchMaster.add(dbc, match).then(result => {
+                if (result.insertId) {
+                    this._matchId = result.insertId;
+                    return Promise.resolve({status: 'ok', id: this.id});
+                } else {
+                    return Promise.reject({code: 'unexpected_error', message: `kiosk id: ${this.id } add match error on player.open`});
+                }
+            })
+        ).catch(err => {
+            return Promise.resolve({status: 'fail', id: this._id, error: err});
+        });
+    }
+
+    /**
+     * player close game
+     * @returns {*}
+     */
+    close(dbc){
+        if (!this._matchId)
+            return Promise.reject({code: 'invalid_call', message: 'invalid match master id on player.close'});
+
+        let data = {
+            balance: this.balance,
+            refund: common.tonumber(matchmaster.refund, 4),
+            betTotal: common.tonumber(bettotal, 4),
+            winAmt: common.tonumber(winamt, 4),
+            payout: common.tonumber((matchmaster.refund + winamt - bettotal), 4),
+            state: "done"
+        };
+        return MatchMaster.update(dbc, {id: this._matchId}, data).then(() => {
+            let data = {
+                gameid: matchmaster.gameid,
+                kioskid: request.propertyget('kiosk').kiosk_id,
+                agentid: matchmaster.agentid,
+                matchid: matchmaster.id
+            };
+            let result = {};
+            result.payout = common.tonumber((matchmaster.refund + winamt - bettotal), 4)
+            result.gamematchid = table.matchid;
+            result.tableindex = table.index;
+            data.result = JSON.stringify(result);
+
+            return MatchResult.add(dbc, data);
+        }).then(() => {
+            let matchmaster = request.propertyget('match.master');
+            let matchresult = request.propertyget('match.result');
+            let bettotal = common.tonumber(matchmaster.bettotal);
+            let totalwin = common.tonumber(matchmaster.winamt);
+            let totalrefund = common.tonumber(matchmaster.refund);
+            let jtype = common.tonumber(matchmaster.jtype);
+            let jamt = common.tonumber(matchmaster.jamt);
+
+            return Member.get(dbc, this._kiosk).then(member => {
+                if (_.isEmpty(member))
+                    return Promise.resolve();
+
+                return MemberTrx.add(dbc, member);
+            });
         });
     }
 

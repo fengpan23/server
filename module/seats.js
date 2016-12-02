@@ -9,6 +9,11 @@ class Seats {
     constructor() {
         this._seats = new Map();
     }
+    get seat(){
+        let s = {};
+        this._seats.forEach((v, k) => s[k] = v);
+        return s;
+    }
 
     /**
      * check this seats has player id
@@ -41,7 +46,6 @@ class Seats {
                 });
 
                 let insert = [];
-                let fields = ['index', 'agentid', 'gameid', 'roomid', 'tableid', 'state', 'kioskid', 'updated', 'created'];
                 let now = Util.formatDate(new Date(), process.env.TIMEZONE);
 
                 for (let i = 1; i <= table.maxkiosk; i++) {
@@ -50,12 +54,13 @@ class Seats {
                         this._seats.set(i, {status: 'empty'});
                     }
                 }
+                let fields = ['index', 'agentId', 'gameId', 'roomId', 'tableId', 'state', 'kioskId', 'updated', 'created'];
                 insert.length > 0 && all.push(Seat.insert(dbc, fields, insert));
             }
 
             if (updateIndex.length > 0) {       //重置座位
-                let data = {gameid: table.gameid, roomid: table.roomid, state: 'idle', kioskid: null, ip: '0.0.0.0', port: 0};
-                all.push(Seat.update(dbc, {tableId: table.id, seatIndex: {IN: updateIndex}}, data));
+                let data = {gameId: table.gameid, roomId: table.roomid, state: 'idle', kioskId: null, ip: '0.0.0.0', port: 0};
+                all.push(Seat.update(dbc, {tableId: table.id, index: {IN: updateIndex}}, data));
             }
             return Promise.all(all);
         });
@@ -73,7 +78,7 @@ class Seats {
         let seatIndex;
         if(this._seats.has(opt.index) && this._seats.get(opt.index).status === 'empty'){
             seatIndex = opt.index;
-            this._seats.set(opt.index, {status: 'occupy', kioskId: opt.kioskId});
+            this._seats.set(seatIndex, {status: 'occupy', kioskId: opt.kioskId});
         }else if(!opt.index || opt.adjust){
             for (let [k, v] of this._seats) {
                 if (v.status === 'empty') {
@@ -88,13 +93,12 @@ class Seats {
             return Promise.reject({code: 'invalid_action', message: opt.index ? 'seat: ' + opt.index + ' has already be sit.' : 'have no seat to choose.'});
 
         let params = _.pick(opt, 'tableId', 'gameId');
-        params.seatindex = seatIndex;
+        params.index = seatIndex;
 
-        let data = _.pick(opt, 'kioskid', 'ip', 'port');
+        let data = _.pick(opt, 'kioskId', 'ip', 'port');
 
         return Seat.update(dbc, params, data).then(() => {
-            this._seats.set(seatIndex, {status: 'seated', kioskId: opt.kioskId});
-
+            this._seats.set(seatIndex, {status: 'seated', kioskId: opt.kioskId, remote: _.pick(opt, 'ip', 'port')});
             let cur = 0;
             for (let v of this._seats.values())
                 if(v.status !== 'empty')cur++;
@@ -103,10 +107,19 @@ class Seats {
         });
     }
 
+    /**
+     * leave seat
+     * @param dbc
+     * @param opt   {Object}    {index: Number}
+     * @returns {*|Promise.<TResult>}
+     */
     leave(dbc, opt){
-        let data = {state: 'idle', kioskid: null, ip: '0.0.0.0', port: 0};
+        if(!this._seats.has(opt.index))
+            return Promise.reject({code: 'invalid_call', message: 'error seat index: ' + opt.index});
+
+        let data = {state: 'idle', kioskId: null, ip: '0.0.0.0', port: 0};
         return Seat.update(dbc, opt, data).then(() => {
-            this._seats.set(opt.seatIndex, {status: 'empty'});
+            this._seats.set(opt.index, {status: 'empty'});
             let cur = 0;
             for (let v of this._seats.values())
                 if(v.status !== 'empty')cur++;

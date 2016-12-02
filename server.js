@@ -54,6 +54,7 @@ class Server extends Events {
             Log.error('Game init error server.game.init: ', e);
         });
 
+        this._modules = new Map();
         this._players = new Map();
 
         process.env.TIMEZONE = this._config.get('timezone');
@@ -70,6 +71,19 @@ class Server extends Events {
     }
     get players(){
         return this._players;
+    }
+
+    /**
+     * get players by player status
+     * @param status    'new | auth | init | login | seat | quit'
+     */
+    getPlayers(status){
+        let p = [];
+        this._players.forEach(player => {
+            if(player.status === status)
+                p.push(player);
+        });
+        return p;
     }
 
     _createBindFunc(options) {
@@ -111,17 +125,24 @@ class Server extends Events {
     }
 
     broadcast(event, content){
-        let data = _.extend({event: event}, content);
-        if(data.event){
-            this._engine.broadcast(data);
+        if(event){
+            this._engine.broadcast(event, content);
         }else{
             throw new Error('empty event param !!!');
         }
     }
 
-    createModule(moduleName){
-        let Module = require('./module/' + moduleName);
-        return new Module(this);
+    getModule(moduleName){
+        if(this._modules.has(moduleName))
+            return this._modules.get(moduleName);
+        try{
+            let Module = require('./module/' + moduleName);
+            let m = new Module(this);
+            this._modules.set(moduleName, m);
+            return m;
+        }catch (e){
+            return new Error(e);
+        }
     }
 }
 

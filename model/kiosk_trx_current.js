@@ -8,8 +8,6 @@ const Util = require('../libs/util');
 const TABLE = 'kiosk_trx_current';
 
 class Transact{
-    constructor() {}
-
     static add(dbc, data) {
         let obj = {};
         obj.kiosk_trx_wallet_type = data.ptype;

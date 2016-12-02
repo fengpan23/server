@@ -45,6 +45,25 @@ class Handle{
         });
     }
 
+    check(dbc, players, options){
+        return Deposit.select(dbc, _.pick(options, 'gameId', 'tableId')).then(list => {
+            let reject = [], pass = [];
+            players.forEach(player => {
+                if (list.has(player.id)) {
+                    let deposit = list.get(player.id);
+                    if (deposit.amount < options.maxBet || deposit.status === 2) {
+                        return reject.push({kioskId: player.id, amount: deposit.amount, mess: 'insufficient deposit'});
+                    }
+                    pass.push({kioskId: player.id, amount: deposit.amount});
+                } else {
+                    reject.push({kioskId: player.id, mess: 'not in deposit'});
+                }
+            });
+
+            return Promise.resolve({reject: reject, pass: pass});
+        });
+    }
+
     _tran(dbc, options){
         let opt = _.pick(options, 'kioskId', 'gameId', 'name', 'pType', 'trxType');
         opt.jpType = opt.refund = opt.matchId = 0;
@@ -59,7 +78,7 @@ class Handle{
             opt.memberid = member.memberid || 0;
             opt.affiliateid = member.affiliateid || 0;
             opt.total = opt.current = options.amount;
-            opt.protect = opt.protect ||0;
+            opt.protect = opt.protect || 0;
 
             return AgencyTrx.add(dbc, opt);
         });

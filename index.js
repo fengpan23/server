@@ -1,7 +1,7 @@
 /**
  * Created by fp on 2016/10/13.
  */
-
+const _ = require('underscore');
 const Server = require('./server');
 const STATUS = {exit: -1, init: 1, opened: 3, closed: 5, unlock: 9, locked: 10};
 
@@ -37,13 +37,13 @@ class Index extends Server{
     /**
      * player have seat
      * @param player
-     * @param seatIndex
+     * @param options   {Object}    {index: Number, adjust: Boolean}
      * @returns {Promise}
      */
-    seat(player, seatIndex) {
+    seat(player, options) {
         return this._lock(player, 'seat').then(() => {
             let client = this._engine.getClients(player.clientId);
-           return this._game.seat(player, Object.assign({index: seatIndex}, client.remote)).then(index => {
+            return this._game.seat(player, Object.assign(_.pick(options, 'index', 'adjust'), client.remote)).then(index => {
                 player.set('index', index);
                 player.status = 'seat';
                 return this._unlock(player, 'seat').then(() => Promise.resolve(index));
@@ -56,17 +56,28 @@ class Index extends Server{
 
     /**
      * start game
+     * @param options   {Object}    {
+     *                                  retry: Boolean      //尝试重复开场
+     *                          }
      * @returns {*}
      */
-    open(){
+    open(options){
         if(this._status === STATUS.locked)
             return Promise.reject({code: 'invalid_call', message: 'server id locked on open'});
         if (this._game.id)       // 校验 ‘游戏是否正在暂停’ ||  ‘游戏是否已开场’
-            return Promise.reject({code: 'invalid_call', message: 'match is already opened on engine.open'});
+            return Promise.reject({code: 'invalid_call', message: 'match is already opened on server.open'});
 
         this._status = STATUS.locked;
-        return this._game.start([...this._players.values()]).then(() => {
+
+        return Promise.all([...this._modules.values()].map(module => module.start())).then(() => {
+            return this._game.start([...this._players.values()]);
+        }).then(res => {
+            console.log('game opened open: ', res);
+            if(options && options.retry){      //如果开场失败， 尝试重试开场， 如果部分玩家开场失败，踢掉开场失败玩家 ...
+                //    TODO
+            }
             this._status = STATUS.opened;
+            return Promise.resolve();
         }).catch(e => {
             let clients = this._engine.getClients(this.players.keys());
             clients.forEach(client => {
@@ -100,13 +111,10 @@ class Index extends Server{
     };
 
     /**
-     * close this server
+     * close game
      * @returns {*}
      */
     close(){
-        // if (this.options.deposit && me.getdepositstake() !== me.getdepositwin()) {
-        //     return Promise.reject(new wrong("error", "invalid_action", 'staketotal is not equal wintotal on engine.MatchClose'));
-        // }
         if(this._status === STATUS.locked)
             return Promise.reject({code: 'invalid_call', message: 'server id locked on close'});
 
