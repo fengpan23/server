@@ -19,10 +19,8 @@ class D{
 
     start(){
         console.log('deposit start');
-        let players = [...this._server.players.values()];
-        return this.check(players);
+        return this.check(this._server.players);
     }
-
 
     /**
      * player buy in
@@ -71,6 +69,25 @@ class D{
                 return this._db.close(dbc).then(() => Promise.reject(e));
             });
         });
+    }
+
+    /**
+     * player win （玩家赢钱， 需要先有bet）
+     * @param player
+     * @param point
+     */
+    win(player, point){
+
+    }
+
+    /**
+     * player stake     (玩家下注)
+     * @param player
+     * @param point
+     * @returns {D}
+     */
+    bet(player, point){
+        return this;
     }
 
     /**

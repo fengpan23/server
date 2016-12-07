@@ -34,7 +34,7 @@ class Player {
     }
     get username(){
         let agencyName = this.agency.username;
-        let name = this._kiosk.username || 'anonymous';
+        let name = (this._kiosk && this._kiosk.username) || 'anonymous';
         if (name.startsWith(agencyName))
             name = name.substr(agencyName.length);
         else if (name !== 'anonymous' && name.length > 4)
@@ -53,21 +53,37 @@ class Player {
     set status(value){
         this._status = value;
     }
-
-    set(key, value){
-        this[key] = value;
+    get index(){
+        return this['_cabinet_index'];
     }
 
+    set(key, value){
+        return this['_cabinet_' + key] = value;
+    }
+
+    /**
+     * get player set data
+     * @param key
+     * @returns {*}     if get one return value, get more return key->value object
+     */
     get(key){
-        if(_.isEmpty(this._kiosk))
-            return new Error('player not init');
-        let result;
-        switch (key){
-            case 'point':
-                result = this._kiosk['balance_a'];
-                break;
+        if(_.toArray(arguments).length > 1)
+            key = _.toArray(arguments);
+        if(_.isArray(key)){
+            let res = {};
+            for(let k of key){
+                res[k] = this['_cabinet_' + k];
+            }
+            return res;
+        }else{
+            return this['_cabinet_' + key];
         }
-        return result || this['_' + key];
+    }
+
+    clear(key){
+        if(this[key]){
+            delete  this['_cabinet_' + key];
+        }
     }
 
     init(dbc, options){
@@ -159,42 +175,42 @@ class Player {
      * player close game
      * @returns {*}
      */
-    close(dbc){
+    close(dbc, options){
         if (!this._matchId)
             return Promise.reject({code: 'invalid_call', message: 'invalid match master id on player.close'});
 
         let data = {
             balance: this.balance,
-            refund: common.tonumber(matchmaster.refund, 4),
-            betTotal: common.tonumber(bettotal, 4),
-            winAmt: common.tonumber(winamt, 4),
-            payout: common.tonumber((matchmaster.refund + winamt - bettotal), 4),
+            // refund: common.tonumber(matchmaster.refund, 4),
+            // betTotal: common.tonumber(bettotal, 4),
+            // winAmt: common.tonumber(winamt, 4),
+            // payout: common.tonumber((matchmaster.refund + winamt - bettotal), 4),
             state: "done"
         };
         return MatchMaster.update(dbc, {id: this._matchId}, data).then(() => {
             let data = {
-                gameid: matchmaster.gameid,
-                kioskid: request.propertyget('kiosk').kiosk_id,
-                agentid: matchmaster.agentid,
-                matchid: matchmaster.id
+                gameId: options.gameId,
+                kioskId: this.id,
+                agentId: options.agentId,
+                matchId: this._matchId
             };
             let result = {};
-            result.payout = common.tonumber((matchmaster.refund + winamt - bettotal), 4)
-            result.gamematchid = table.matchid;
-            result.tableindex = table.index;
+            // result.payout = common.tonumber((matchmaster.refund + winamt - bettotal), 4)
+            result.gamematchid = options.gamematchid;
+            result.tableindex = options.tableindex;
             data.result = JSON.stringify(result);
 
             return MatchResult.add(dbc, data);
         }).then(() => {
-            let matchmaster = request.propertyget('match.master');
-            let matchresult = request.propertyget('match.result');
-            let bettotal = common.tonumber(matchmaster.bettotal);
-            let totalwin = common.tonumber(matchmaster.winamt);
-            let totalrefund = common.tonumber(matchmaster.refund);
-            let jtype = common.tonumber(matchmaster.jtype);
-            let jamt = common.tonumber(matchmaster.jamt);
+            // let matchmaster = request.propertyget('match.master');
+            // let matchresult = request.propertyget('match.result');
+            // let bettotal = common.tonumber(matchmaster.bettotal);
+            // let totalwin = common.tonumber(matchmaster.winamt);
+            // let totalrefund = common.tonumber(matchmaster.refund);
+            // let jtype = common.tonumber(matchmaster.jtype);
+            // let jamt = common.tonumber(matchmaster.jamt);
 
-            return Member.get(dbc, this._kiosk).then(member => {
+            return Member.get(dbc, {kioskId: this.id}).then(member => {
                 if (_.isEmpty(member))
                     return Promise.resolve();
 

@@ -14,10 +14,10 @@ class MasterCurrent {
     }
 
     static update(dbc, params, data) {
-        let match = Util.format(TABLE, data, true);
+        let match = Util.format('', data, true);
         match.updated = Util.formatDate(new Date(), process.env.TIMEZONE);
 
-        return DB.update(dbc, TABLE, match, Util.getCond(TABLE, params));
+        return DB.update(dbc, TABLE, match, Util.getCond('', params));
     }
 
     select(dbc, params){

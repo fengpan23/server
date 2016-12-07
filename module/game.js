@@ -183,7 +183,7 @@ class G{
                 let seats = this._seats.seat;
 
                 return Promise.all(players.map(player => {
-                    return player.open(dbc, _.extend({}, opt, seats[player.index].remote));
+                    return player.open(dbc, _.extend({}, opt, seats[player.get('index')].remote));
                 }));
             }).then(res => {
                 return this._db.over(dbc).then(() => Promise.resolve(res));
@@ -199,26 +199,35 @@ class G{
      * @returns {*|Promise.<TResult>}
      */
     over(players){
-        return this._db.begin().then(dbc =>
-            Promise.all(players.map(player => player.close(dbc))).then(() => {
-                let params = {id: this._id, agentId: this._table.poolAgentId, tableId: this._table.id, gameId: this._table.gameid, state: "open"};
+        return this._db.begin().then(dbc => {
+            let opt = {gameId: this._table.gameid};
+            return Promise.all(players.map(player => player.close(dbc, opt))).then(() => {
+                let params = {
+                    id: this._id,
+                    agentId: this._table.poolAgentId,
+                    tableId: this._table.id,
+                    gameId: this._table.gameid,
+                    state: "open"
+                };
                 let data = {
-                    kioskCount: gamematchresult.kioskcount,
-                    betTotal: common.tonumber(gamematchresult.bettotal, 4),
-                    winTotal: common.tonumber(gamematchresult.wintotal, 4),
-                    payout: common.tonumber((gamematchresult.wintotal - gamematchresult.bettotal), 4),
-                    betDetail: JSON.stringify(common.float2fix(gamematchresult.betdetail)),
-                    result: JSON.stringify(common.float2fix(gamematchresult.result)),
-                    matchEnd: dbtime,
+                    // kioskCount: gamematchresult.kioskcount,
+                    // betTotal: common.tonumber(gamematchresult.bettotal, 4),
+                    // winTotal: common.tonumber(gamematchresult.wintotal, 4),
+                    // payout: common.tonumber((gamematchresult.wintotal - gamematchresult.bettotal), 4),
+                    // betDetail: JSON.stringify(common.float2fix(gamematchresult.betdetail)),
+                    // result: JSON.stringify(common.float2fix(gamematchresult.result)),
+                    // matchEnd: dbtime,
                     state: "close"
                 };
                 return Match.update(dbc, params, data);
             }).then(() => {
+                this._id = null;
+
                 return this._db.over(dbc);
             }).catch(e => {
                 return this._db.close(dbc).then(() => Promise.reject(e));
-            })
-        );
+            });
+        });
     }
 
     exit(){

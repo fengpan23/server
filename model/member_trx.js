@@ -6,6 +6,7 @@ class MemberTrx {
     constructor(){}
 
     add(dbc, data){
+        console.log('data: ', data);
         let trx = Util.format('member_trx_', data, true);
         trx.status = 1;
         trx.created_time = Util.formatDate(new Date(), process.env.TIMEZONE);

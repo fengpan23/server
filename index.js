@@ -57,7 +57,7 @@ class Index extends Server{
     /**
      * start game
      * @param options   {Object}    {
-     *                                  retry: Boolean      //尝试重复开场
+     *                                  retry: Number      //尝试重复开场次数
      *                          }
      * @returns {*}
      */
@@ -79,7 +79,7 @@ class Index extends Server{
             this._status = STATUS.opened;
             return Promise.resolve();
         }).catch(e => {
-            let clients = this._engine.getClients(this.players.keys());
+            let clients = this._engine.getClients(this._players.keys());
             clients.forEach(client => {
                 client.close('system_maintenance');
             });
@@ -117,20 +117,32 @@ class Index extends Server{
     close(){
         if(this._status === STATUS.locked)
             return Promise.reject({code: 'invalid_call', message: 'server id locked on close'});
+        if (!this._game.id)       // 校验 ‘游戏是否正在暂停’ ||  ‘游戏是否已开场’
+            return Promise.reject({code: 'invalid_call', message: 'match is not opened on server.close'});
 
         this._status = STATUS.locked;
         let players = [...this._players.values()];
-        return this._game.over(players).then(() => {
+
+        return this._game.over(players).then(res => {
+            console.log('res: ', res);
             this._status = STATUS.closed;
-            this._unlock('close');
+
+            return Promise.resolve();
         }).catch(e => {
             this._status = STATUS.unlock;
             return Promise.reject(e);
         });
     }
 
+    /**
+     * game exit
+     * @returns {*|Promise.<TResult>}
+     */
     exit() {
         this._status = STATUS.exit;
+        if(this._game.id)
+            return this.close();
+        return Promise.resolve();
     };
 
     get(name){

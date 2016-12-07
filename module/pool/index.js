@@ -2,18 +2,17 @@
  * Created by fp on 2016/11/17.
  */
 
-const Game = require('../game');
-const Pool = require('./pool');
+const Handle = require('./handle');
 
-class P extends Game{
+class Pool{
     constructor(options){
         super(options);
     }
 
     update(){
         return this._db.begin().then(dbc =>
-            Pool.gpoolupdate(dbc, amount).then(pool => {
-                return Pool.gpooldelaychk(dbc).then(() => Promise.resolve(pool));
+            Handle.gpoolupdate(dbc, amount).then(pool => {
+                return Handle.gpooldelaychk(dbc).then(() => Promise.resolve(pool));
             }).then(pool => {
                 return this._db.over(dbc).then(() => Promise.resolve(pool));
             }).catch(e => {
@@ -28,4 +27,4 @@ class P extends Game{
     }
 }
 
-module.exports = P;
+module.exports = Pool;

@@ -3,17 +3,17 @@
  */
 
 const _ = require('underscore');
-const db = require('../libs/db');
+const DB = require('../libs/db');
 const Util = require('../libs/util');
 
 const TABLE = 'match_result_current';
 
 class MatchResult{
     static add(dbc, data) {
-        let match = Util.format(TABLE, data, true);
+        let match = Util.format('', data, true);
         match.created = Util.formatDate(new Date(), process.env.TIMEZONE);
 
-        return db.insert(dbc, TABLE, data);
+        return DB.insert(dbc, TABLE, match);
     }
 }
 

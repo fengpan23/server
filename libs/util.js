@@ -2,16 +2,17 @@
  * Created by fp on 2016/10/21.
  */
 
-class Util {
-    constructor() {
+const _ = require('underscore');
 
-    }
+class Util {
+    constructor() {}
 
     static format(str, input, plus) {
         let results = {};
         let start = typeof str === 'number' ? str : str.length + 1;
+        let st = str ?　str + '_' : '';
         for(let key in input){
-            let k = plus ? str + '_' + key.toLowerCase() : key.substr(start);
+            let k = plus ? st + key.toLowerCase() : key.toLowerCase().substr(start);
             results[k] = input[key];
         }
         return results;
@@ -19,8 +20,8 @@ class Util {
 
     static getCond(plus, input){
         let results = [];
-        for(let key in input){
-            results.push({[plus + '_' + key.toLowerCase()]: input[key]});
+        for(let key in _.omit(input, v => !v)){
+            results.push({[plus ?　plus + '_' + key.toLowerCase() : key.toLowerCase()]: input[key]});
         }
         return results;
     }

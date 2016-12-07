@@ -61,6 +61,17 @@ class Server extends Events {
         process.on('uncaughtException', err => {
             console.error('server uncaughtException', err);
         });
+
+        let exit = e => {
+            console.log('process exit: ', e);
+            this.exit().then(() => {
+                process.exit(200);
+            }).catch(e => {
+                console.error(e);
+                process.exit(201);
+            });
+        };
+        process.on('SIGTERM', exit).on('SIGBREAK', exit).on('SIGINT', ()=> exit('shutdown'));
     };
 
     get db(){
@@ -70,26 +81,22 @@ class Server extends Events {
         return this._config;
     }
     get players(){
-        return this._players;
+        return [...this._players.values()];
     }
 
     /**
      * get players by player status
-     * @param status    'new | auth | init | login | seat | quit'
+     * @param options   {object}    {status: 'new | auth | init | login | seat | quit'}
      */
-    getPlayers(status){
-        let p = [];
-        this._players.forEach(player => {
-            if(player.status === status)
-                p.push(player);
-        });
-        return p;
+    getPlayers(options){
+        let players = _.where(this.players, options);
+        return players.length < 2 ? players[0] : players;
     }
 
     _createBindFunc(options) {
         if (options.api) {
             return function (request) {       //request.content => json {event: String, data: Obj}
-                let player = this.players.get(request.clientId);
+                let player = this._players.get(request.clientId);
                 let opt = {};
                 if (!player) {
                     player = new Player(request.clientId);
@@ -114,6 +121,7 @@ class Server extends Events {
                         request.error('invalid_action', action);
                     }
                 }).catch(e => {
+                    Log.error(e);
                     request.error(e.code, e.message);
                 });
             }
@@ -130,6 +138,11 @@ class Server extends Events {
         }else{
             throw new Error('empty event param !!!');
         }
+    }
+
+    createRequest(player, event, content){
+        if(player.clientId)
+            return this._engine.createRequest(player.clientId, {event: event || 'default', content: content});
     }
 
     getModule(moduleName){
