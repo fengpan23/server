@@ -77,17 +77,18 @@ class D{
      * @param point
      */
     win(player, point){
-
+        this._deposit.set(player.id, point);
+        return Promise.resolve(point);
     }
 
     /**
      * player stake     (玩家下注)
      * @param player
      * @param point
-     * @returns {D}
      */
     bet(player, point){
-        return this;
+        this._deposit.set(player.id, point);
+        return Promise.resolve(point);
     }
 
     /**

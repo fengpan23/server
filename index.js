@@ -99,7 +99,7 @@ class Index extends Server{
                 if (this._game.id) {
                     // return player.leave(request, me.gameprofile, me.table, me.depositbalance.get(kiosk.kiosk_id) || 0);
                 } else {
-                    return Promise.resolve();
+                    return Promise.resolve(player);
                 }
             }).then(() => {
                 return this._unlock(player, 'seat');
