@@ -1,24 +1,26 @@
 /**
  * Created by fp on 2016/10/14.
  */
-const db = require('../libs/db');
+const DB = require('../libs/db');
+const Util = require('../libs/util');
+
 
 const TABLE = 'game_group_setting';
 
-class Setting {
+class SettingGroup {
     constructor() {}
 
     /**
      * 获取游戏组设置
      * @param dbc
-     * @param groupId
-     * @param agencyId
-     * @param status
+     * @param params
+     *  params.groupId
+     *  params.agencyId
+     *  params.status
      */
-    static get (dbc, groupId, agencyId, status) {
-        let cond = [{[TABLE + '_groupid']: groupId}, {[TABLE + '_agencyid']: agencyId}, {[TABLE + '_status']: status}];
-        return db.one(dbc, TABLE, '*', cond);
+    static get (dbc, params) {
+        return DB.one(dbc, TABLE, '*', Util.getCond(TABLE, params));
     }
 }
 
-module.exports = Setting;
+module.exports = SettingGroup;

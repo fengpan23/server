@@ -39,7 +39,12 @@ class Profile{
             })
             .then(a => {
                 // console.log(a)
-                return SettingGroup.get(dbc, this._game.groupid, this._game.pool_agentid, 1);
+                let params = {
+                    groupId: this._game.groupid,
+                    agencyId: this._game.pool_agentid,
+                    status: 1
+                };
+                return SettingGroup.get(dbc, params);
             })
             .then(b => {
                 this._game.top_agentid = 0;
