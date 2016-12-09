@@ -167,7 +167,7 @@ class Player {
                 }
             })
         ).catch(err => {
-            return Promise.resolve({status: 'fail', id: this._id, error: err});
+            return Promise.resolve({status: 'fail', id: this.id, error: err});
         });
     }
 
@@ -209,7 +209,6 @@ class Player {
             // let totalrefund = common.tonumber(matchmaster.refund);
             // let jtype = common.tonumber(matchmaster.jtype);
             // let jamt = common.tonumber(matchmaster.jamt);
-
             return Member.get(dbc, {kioskId: this.id}).then(member => {
                 if (_.isEmpty(member))
                     return Promise.resolve();

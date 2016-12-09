@@ -2,8 +2,8 @@
  * Created by fp on 2016/10/13.
  */
 const _ = require('underscore');
-const mysql = require('mysql');
-const common = require('common');
+const Mysql = require('mysql');
+const Common = require('common');
 
 class DB {
     constructor() {}
@@ -71,12 +71,12 @@ class DB {
         if (table)
             return new Promise((resolve, reject) => {
                 if (typeof column === 'object'){
-                    column = common.first(column);
-                    column = column && common.first(column).value;
+                    column = Common.first(column);
+                    column = column && Common.first(column).value;
                 }
                 let limit = offset ? {limit: 1, offset: +offset} : 1;
                 this.query(connection, getSelectSql(table, column, condition, order, limit, group, having)).then(result => {
-                    let res = common.first(result[0]);
+                    let res = Common.first(result[0]);
                     resolve(res && res.value);
                 }).catch(reject);
             });
@@ -88,7 +88,7 @@ class DB {
         let args = Array.prototype.slice.call(arguments);
         if (args.length > 2) {
             if (typeof (args[2]) === 'object')
-                args[2] = common.first(args[2]).value;
+                args[2] = Common.first(args[2]).value;
             args[2] = "{DB_SUM}" + args[2];
             return this.cell.apply(this, args);
         }
@@ -102,7 +102,7 @@ class DB {
                 args[2] = "*";
             }
             if (typeof (args[2]) === 'object')
-                args[2] = common.first(args[2]).value;
+                args[2] = Common.first(args[2]).value;
             args[2] = "{DB_COUNT}" + args[2];
             return this.cell.apply(this, args);
         }
@@ -204,8 +204,8 @@ class DB {
 }
 
     function escape(value, auto, column) {
-        if (typeof value !== 'string') value = common.toString(value);
-        let strEscape = column === true ? mysql.escapeId(value) : mysql.escape(value);
+        if (typeof value !== 'string') value = Common.toString(value);
+        let strEscape = column === true ? Mysql.escapeId(value) : Mysql.escape(value);
         return auto === true ? strEscape : strEscape.substring(1, strEscape.length - 1);
     }
 
@@ -259,7 +259,7 @@ class DB {
                         dbcolnow = "NOW()";
                         break;
 
-                    case common.range('A', 'Z').indexOf(matches[1]) > -1:
+                    case Common.range('A', 'Z').indexOf(matches[1]) > -1:
                         dbcolnow = getColnm(dbcolnm.replace(matches[0], ""), null, false, true);
                         break;
                 }
@@ -268,7 +268,7 @@ class DB {
             else
                 dbcolnow = escape(dbcolnm);
             if (alias)
-                dbcolnow += (typeof (dbcola) === 'string' && !common.isNumeric(dbcola) ? " AS " + escape(dbcola, true) : "");
+                dbcolnow += (typeof (dbcola) === 'string' && !Common.isNumeric(dbcola) ? " AS " + escape(dbcola, true) : "");
         }
         return dbcolnow;
     }
@@ -321,7 +321,7 @@ class DB {
         let str = '';
         switch (typeof dvalue) {
             case 'object':
-                let first = common.first(dvalue),
+                let first = Common.first(dvalue),
                     value = first.value,
                     key = first.key,
                     result = [];
@@ -332,21 +332,21 @@ class DB {
                         if (typeof (value) === 'object' && value)
                             for (let vkey in value)
                                 result.push(escape(value[vkey]));
-                        str += " IN ('" + common.implode("','", result) + "')";
+                        str += " IN ('" + Common.implode("','", result) + "')";
                         break;
                     case "XLIST":
                     case "XIN":
                         if (typeof (value) === 'object' && value)
                             for (let vkey in value)
                                 result.push(escape(value[vkey]));
-                        str += " NOT IN ('" + common.implode("','", result) + "')";
+                        str += " NOT IN ('" + Common.implode("','", result) + "')";
                         break;
                     case "BETWEEN":
-                        value = common.array_values(value);
+                        value = Common.array_values(value);
                         str += " BETWEEN " + escape(value[0], true) + " AND " + escape(value[1], true);
                         break;
                     case "XBETWEEN":
-                        value = common.array_values($Value);
+                        value = Common.array_values($Value);
                         str += " NOT BETWEEN " + escape(value[0], true) + " AND " + escape(value[1], true);
                         break;
                     default:
@@ -412,7 +412,7 @@ class DB {
                     if (typeof (cond[i]) === 'string')
                         value = cond[i];
                     else if (typeof (cond[i]) === 'object' && !_.isEmpty(cond[i])) {
-                        let first = common.first(cond[i]);
+                        let first = Common.first(cond[i]);
                         key = first.key;
                         value = first.value;
                     } else
@@ -506,7 +506,7 @@ class DB {
                         } else
                             otype = "ASC";
                     } else if (typeof (order[i]) === 'object' && !_.isEmpty(order[i])) {
-                        let first = common.first(order[i]);
+                        let first = Common.first(order[i]);
                         oname = first.key;
                         otype = first.value.toUpperCase();
                         if (otype === '{DB_RAND}')
@@ -548,7 +548,7 @@ class DB {
                         limit = [limit];
                     }else if (_.isArray(limit)) {
                         console.error('comm.....');
-                        limit = common.array_values(limit);
+                        limit = Common.array_values(limit);
                         let item = 0;
                         limitAnchor:
                             if (limit.length > 1) {
@@ -619,7 +619,7 @@ class DB {
         let values = '';
         for (let row in data) {
             let val = '';
-            if (data[row] && _.isArray(data[row]) && common.count(data[row]) === fieldCount) {
+            if (data[row] && _.isArray(data[row]) && Common.count(data[row]) === fieldCount) {
                 for (let col in data[row])
                     val += (val === '' ? '' : ', ') + getColVal(data[row][col]);
                 values += (values === '' ? '' : ', ') + '(' + val + ')';

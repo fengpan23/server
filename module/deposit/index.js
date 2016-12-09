@@ -2,24 +2,36 @@
  * Created by fp on 2016/11/15.
  */
 
+const Log = require('log')();
 const _ = require('underscore');
-const handle = require('./handle');
+const Handle = require('./handle');
 
 class D{
     constructor(server){
-        this._db = server.db;
         this._server = server;
 
-        server.on('disconnect', player => {
-            this.out(player);
-        });
+        server.on('disconnect', this.quit.bind(this));
 
         this._deposit = new Map();
     };
 
     start(){
+        return this._server.db.begin().then(dbc => {
+            let table = this._server.get('table');
+            let opt = {gameId: table.gameid, tableId: table.id, maxBet: table.maxbet};
+
+            return Handle.check(dbc, this._server.players, opt).then(res => {
+
+                let params = {gameId: table.gameid, tableId: table.id};
+                Promise.all(res.pass.map(r => Handle.start(dbc, Object.assign({kioskId: r.kioskId}, params))))
+            }).then(() => {
+                return this._server.db.over(dbc);
+            }).catch(e => {
+                return this._server.db.close(dbc).then(() => Promise.reject(e));
+            });
+        });
         console.log('deposit start');
-        return this.check(this._server.players);
+
     }
 
     /**
@@ -29,7 +41,7 @@ class D{
      * @returns {Promise.<TResult>}
      */
     buy(player, amount){
-        return this._db.begin().then(dbc => {
+        return this._server.db.begin().then(dbc => {
             let table = this._server.get('table');
             let opt = {
                 amount: amount,
@@ -42,16 +54,24 @@ class D{
                 name: 'main'
             };
 
-            return handle.buy(dbc, opt).then(balance => {
-                return this._db.over(dbc).then(() => Promise.resolve(balance))
+            return Handle.buy(dbc, opt).then(balance => {
+                this._deposit.set(player.id, amount);
+                return this._server.db.over(dbc).then(() => Promise.resolve(balance))
             }).catch(e => {
-                return this._db.close(dbc).then(() => Promise.reject(e));
+                return this._server.db.close(dbc).then(() => Promise.reject(e));
             });
         });
     }
 
-    out(player){
-        return this._db.begin().then(dbc => {
+    /**
+     * player quit
+     * @param player
+     */
+    quit(player){
+        if(!this._deposit.has(player.id))
+            return;
+
+        this._server.db.begin().then(dbc => {
             let table = this._server.get('table');
             let opt = {
                 gameId: table.gameid,
@@ -63,11 +83,13 @@ class D{
                 name: 'main'
             };
 
-            return handle.refund(dbc, opt).then(() => {
-                return this._db.over(dbc);
+            return Handle.refund(dbc, opt).then(() => {
+                return this._server.db.over(dbc);
             }).catch(e => {
-                return this._db.close(dbc).then(() => Promise.reject(e));
+                return this._server.db.close(dbc).then(() => Promise.reject(e));
             });
+        }).catch(e => {
+            Log.error('on player deposit.quit ', e);
         });
     }
 
@@ -97,15 +119,13 @@ class D{
      * @returns {Promise.<TResult>|*}
      */
     check(players){
-        return this._db.begin().then(dbc => {
+        return this._server.db.begin().then(dbc => {
             let table = this._server.get('table');
             let opt = {gameId: table.gameid, tableId: table.id, maxBet: table.maxbet};
-            return handle.check(dbc, players, opt).then(res => {
-                console.log('check res : ', res);
-            }).then(() => {
-                return this._db.over(dbc);
+            return Handle.check(dbc, players, opt).then(res => {
+                return this._server.db.over(dbc).then(() => Promise.resolve(res));
             }).catch(e => {
-                return this._db.close(dbc).then(() => Promise.reject(e));
+                return this._server.db.close(dbc).then(() => Promise.reject(e));
             });
         });
     }

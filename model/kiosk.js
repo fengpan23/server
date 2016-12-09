@@ -1,23 +1,14 @@
 /**
  * Created by fengpan on 2016/10/22.
  */
-const db = require('../libs/db');
+const DB = require('../libs/db');
 const Util = require('../libs/util');
 
 const TABLE = "kiosk";
 
-function getCond(params) {
-    let cond = [];
-    if (params.id) cond.push({kiosk_id: params.id});
-    if (params.session) cond.push({kiosk_session: params.session});
-    return cond;
-}
-
 class Kiosk{
-    constructor(){}
-
     static get(dbc, params) {
-        return db.one(dbc, TABLE, '*', getCond(params)).then(kiosk => Promise.resolve(Util.format(TABLE, kiosk)));
+        return DB.one(dbc, TABLE, '*', Util.getCond(TABLE, params)).then(kiosk => Promise.resolve(Util.format(TABLE, kiosk)));
     }
 
     /**
@@ -26,7 +17,7 @@ class Kiosk{
      * @param id
      */
     static getStatus(dbc, id) {
-        return db.cell(dbc, TABLE, "kiosk_status", [{kiosk_id: id}]);
+        return DB.cell(dbc, TABLE, "kiosk_status", [{kiosk_id: id}]);
     }
 
     /**
@@ -35,7 +26,7 @@ class Kiosk{
      * @param params    {Object} {kioskId: Number, session: String}
      */
     static getForUpdate(dbc, params) {
-        return db.oneForUpdate(dbc, TABLE, '*', Util.getCond(TABLE, params));
+        return DB.oneForUpdate(dbc, TABLE, '*', Util.getCond(TABLE, params));
     }
 
 
@@ -46,7 +37,7 @@ class Kiosk{
      * @param data
      */
     static updateBalance(dbc, kioskId, data) {
-        return db.update(dbc, TABLE, Util.format(TABLE, data, true), [{"kiosk_id": kioskId}]);
+        return DB.update(dbc, TABLE, Util.format(TABLE, data, true), [{"kiosk_id": kioskId}]);
     }
 }
 

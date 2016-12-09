@@ -45,6 +45,24 @@ class Handle{
         });
     }
 
+    /**
+     * start player deposit
+     * @param dbc
+     * @param options
+     * @returns {Promise.<TResult>}
+     */
+    start(dbc, options){
+        return Deposit.one(dbc, options).then(res => {
+            if (_.isEmpty(res)) {
+                return Promise.reject(new wrong('error', 'insufficient_deposit', `kioskid:${client.kiosk.kiosk_id} depositbalance is not enough on gamematch.depositmatchopen`));
+            } else if (res.amount < table.maxbet || res.status === 2) {
+                return Promise.reject(new wrong('error', 'insufficient_deposit', `kioskid:${client.kiosk.kiosk_id} depositbalance is not enough on gamematch.depositmatchopen`));
+            } else {
+                return Deposit.update(dbc, {status: 1}, params);
+            }
+        });
+    }
+
     check(dbc, players, options){
         return Deposit.select(dbc, _.pick(options, 'gameId', 'tableId')).then(list => {
             let reject = [], pass = [];

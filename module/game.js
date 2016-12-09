@@ -151,7 +151,6 @@ class G{
         return this._db.begin().then(dbc =>
             this._init(dbc, {tableId: this._table.id, reload: true}).then(() => {
                 let params = {agencyId: this._table.top_agentid, gameId: this._profile.game.id, status: 1};
-                console.log('game start params', params);
                 return AgencyGame.find(dbc, params);
             }).then(eg => {
                 if (_.isEmpty(eg))
