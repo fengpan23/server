@@ -2,14 +2,9 @@
  * Created by fengpan on 2016/10/22.
  */
 const _ = require('underscore');
-const Kiosk = require('../model/kiosk');
-const Agency = require('../model/agency');
-const Member = require('../model/kiosk_member');
-const MemberTrx = require('../model/member_trx');
-const MatchMaster = require('../model/match_master');
-const MatchResult = require('../model/match_result');
-const AgencySuspend = require('../model/agency_suspend');
-const Wallet = require('../model/kiosk_wallet');
+const UserModel = require('../model/user');
+const MatchMasterModel = require('../model/match_master');
+const MatchResultModel = require('../model/match_result');
 
 const STATUS = {new: 0, auth: 1, init: 3, login: 5, seat: 7, open: 9, quit: 11};
 
@@ -21,20 +16,20 @@ class Player {
         this._status = 'new';
     }
     get id(){
-        return this._kiosk &&　this._kiosk.id
+        return this._user &&　this._user.id
     }
     get matchId(){      //玩家开场之后产生 match id
         return this._matchId;
     }
-    get kiosk(){
-        return Object.assign({}, this._kiosk);
+    get user(){
+        return Object.assign({}, this._user);
     }
     get agency(){
         return Object.assign({}, this._agency);
     }
     get username(){
         let agencyName = this.agency.username;
-        let name = (this._kiosk && this._kiosk.username) || 'anonymous';
+        let name = (this._user && this._user.username) || 'anonymous';
         if (name.startsWith(agencyName))
             name = name.substr(agencyName.length);
         else if (name !== 'anonymous' && name.length > 4)
@@ -42,7 +37,7 @@ class Player {
         return name;
     }
     get balance(){
-        return this._kiosk && this._kiosk['balance_a'];
+        return this._user && this._user['balance_a'];
     }
     get clientId(){
         return this._clientId;
@@ -89,20 +84,20 @@ class Player {
     init(dbc, options){
         let opt = _.pick(_.omit(options, v => !v), 'id', 'session');
         if(_.isEmpty(opt))
-            return Promise.reject({code: 'invalid_params', message: 'player init options: ' + JSON.stringify(options)});
-        return Kiosk.get(dbc, opt).then(kiosk => {
+            return Promise.reject({code: 'invalid_params', message: 'player verify fail， params: ' + JSON.stringify(options)});
+        return UserModel.get(dbc, opt).then(user => {
             this._status = 'auth';
-            if(!_.isEmpty(kiosk)){
-                if(kiosk.status !== 1)
-                    return Promise.reject({code: 'invalid_user', message: 'kiosk is not active on player.init'});
-                return Promise.resolve(this._kiosk = kiosk);
+            if(!_.isEmpty(user)){
+                if(user.status !== 1)
+                    return Promise.reject({code: 'invalid_user', message: 'user is not active on player.init'});
+                return Promise.resolve(this._user = user);
             }
-            return Promise.reject({code: 'unknown_session', message: 'Empty kiosk by options: ' + JSON.stringify(options) + ' on player.init'});
+            return Promise.reject({code: 'unknown_session', message: 'Empty user by options: ' + JSON.stringify(options) + ' on player.init'});
         });
     }
 
     _load(dbc, options){
-        return this.init(dbc, {id: this._kiosk.id, session: this._kiosk.session})
+        return this.init(dbc, {id: this._user.id, session: this._user.session})
             .then(() => {
                 return this.loadWallet(dbc, options);
             })
@@ -112,34 +107,34 @@ class Player {
     }
 
     loadWallet(dbc, options){
-        return Wallet.get(dbc, {kioskId: this._kiosk.id, pType: options.pType, name: options.walletType || 'main'}).then(wallet => {
+        return Wallet.get(dbc, {userId: this._user.id, pType: options.pType, name: options.walletType || 'main'}).then(wallet => {
             if (_.isEmpty(wallet))
-                return Promise.reject({code: 'insufficient_fund', message: 'cat not get wallet on kiosk.load'});
+                return Promise.reject({code: 'insufficient_fund', message: 'cat not get wallet on user.load'});
 
             Promise.resolve(this._wallet = wallet);
         });
     }
 
     loadAgency(dbc, options){
-        return Agency.get(dbc, {agencyId: this._kiosk.agencyid}).then(agency => {
-            if (_.isEmpty(agency))
-                return Promise.reject({code: 'invalid_params', message: 'cat not get agency by kiosk_agencyid on kiosk.reload'});
+        // return Agency.get(dbc, {agencyId: this._user.agencyid}).then(agency => {
+        //     if (_.isEmpty(agency))
+        //         return Promise.reject({code: 'invalid_params', message: 'cat not get agency by user_agencyid on user.reload'});
 
-            this._agency = agency;
-            let poolAgentId = (agency['follow_top_agentpool'] === 'Y'  && agency['top_agencyid'] <= 0) ? agency.id : agency['top_agencyid'];
+        //     this._agency = agency;
+        //     let poolAgentId = (agency['follow_top_agentpool'] === 'Y'  && agency['top_agencyid'] <= 0) ? agency.id : agency['top_agencyid'];
 
-            if ((options.agentId === 0 && options.topAgentId === agency['top_agencyid']) || poolAgentId === options.poolAgentId) {
-                let structure = typeof agency['upline_structure'] === 'string' ? agency['upline_structure'].split(',') : [];
-                structure.push(agency.id);
-                return AgencySuspend.getCount(dbc, structure);
-            } else
-                return Promise.reject({code: 'agent_suspended', message: 'agency is not active on kiosk.load'});
-        }).then(count => {
-            if (count > 0)
-                return Promise.reject({code: 'agent_suspended', message: 'there are agency suspend on kiosk.load'});
-            else
-                return Promise.resolve(count);
-        });
+        //     if ((options.agentId === 0 && options.topAgentId === agency['top_agencyid']) || poolAgentId === options.poolAgentId) {
+        //         let structure = typeof agency['upline_structure'] === 'string' ? agency['upline_structure'].split(',') : [];
+        //         structure.push(agency.id);
+        //         return AgencySuspend.getCount(dbc, structure);
+        //     } else
+        //         return Promise.reject({code: 'agent_suspended', message: 'agency is not active on user.load'});
+        // }).then(count => {
+        //     if (count > 0)
+        //         return Promise.reject({code: 'agent_suspended', message: 'there are agency suspend on user.load'});
+        //     else
+                return Promise.resolve(0);
+        // });
     }
 
     /**
@@ -151,19 +146,19 @@ class Player {
     open(dbc, options){
         let match = _.pick(options, 'gameId', 'tableId', 'pType');
         _.extend(match, {
-            agentId: this._kiosk.agencyid,  kioskId: this.id, kioskType: this._kiosk.type,
+            agentId: this._user.agencyid,  userId: this.id, userType: this._user.type,
             clientIp: options.ip, bonusId: 0,  mType: "N", openBal: 1, betTotal: 0, winAmt: 0,
             payout: 0, refund: 0, balance: 0, state: 'play', jType: 0, jAmt: 0,
             updated: new Date(), created: new Date()
         });
 
         return this._load(dbc, options).then(() =>
-            MatchMaster.add(dbc, match).then(result => {
+            MatchMasterModel.add(dbc, match).then(result => {
                 if (result.insertId) {
                     this._matchId = result.insertId;
                     return Promise.resolve({status: 'ok', id: this.id});
                 } else {
-                    return Promise.reject({code: 'unexpected_error', message: `kiosk id: ${this.id } add match error on player.open`});
+                    return Promise.reject({code: 'unexpected_error', message: `user id: ${this.id } add match error on player.open`});
                 }
             })
         ).catch(err => {
@@ -181,35 +176,35 @@ class Player {
 
         let data = {
             balance: this.balance,
-            // refund: common.tonumber(matchmaster.refund, 4),
+            // refund: common.tonumber(matchmasterModel.refund, 4),
             // betTotal: common.tonumber(bettotal, 4),
             // winAmt: common.tonumber(winamt, 4),
-            // payout: common.tonumber((matchmaster.refund + winamt - bettotal), 4),
+            // payout: common.tonumber((matchmasterModel.refund + winamt - bettotal), 4),
             state: "done"
         };
-        return MatchMaster.update(dbc, {id: this._matchId}, data).then(() => {
+        return MatchMasterModel.update(dbc, {id: this._matchId}, data).then(() => {
             let data = {
                 gameId: options.gameId,
-                kioskId: this.id,
+                userId: this.id,
                 agentId: options.agentId,
                 matchId: this._matchId
             };
             let result = {};
-            // result.payout = common.tonumber((matchmaster.refund + winamt - bettotal), 4)
+            // result.payout = common.tonumber((matchmasterModel.refund + winamt - bettotal), 4)
             result.gamematchid = options.gamematchid;
             result.tableindex = options.tableindex;
             data.result = JSON.stringify(result);
 
-            return MatchResult.add(dbc, data);
+            return MatchResultModel.add(dbc, data);
         }).then(() => {
-            // let matchmaster = request.propertyget('match.master');
-            // let matchresult = request.propertyget('match.result');
-            // let bettotal = common.tonumber(matchmaster.bettotal);
-            // let totalwin = common.tonumber(matchmaster.winamt);
-            // let totalrefund = common.tonumber(matchmaster.refund);
-            // let jtype = common.tonumber(matchmaster.jtype);
-            // let jamt = common.tonumber(matchmaster.jamt);
-            return Member.get(dbc, {kioskId: this.id}).then(member => {
+            // let matchmasterModel = request.propertyget('match.master');
+            // let matchresultModel = request.propertyget('match.result');
+            // let bettotal = common.tonumber(matchmasterModel.bettotal);
+            // let totalwin = common.tonumber(matchmasterModel.winamt);
+            // let totalrefund = common.tonumber(matchmasterModel.refund);
+            // let jtype = common.tonumber(matchmasterModel.jtype);
+            // let jamt = common.tonumber(matchmasterModel.jamt);
+            return Member.get(dbc, {userId: this.id}).then(member => {
                 if (_.isEmpty(member))
                     return Promise.resolve();
 

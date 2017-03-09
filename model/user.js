@@ -4,11 +4,11 @@
 const DB = require('../libs/db');
 const Util = require('../libs/util');
 
-const TABLE = "kiosk";
+const TABLE = "user";
 
-class Kiosk{
+class User{
     static get(dbc, params) {
-        return DB.one(dbc, TABLE, '*', Util.getCond(TABLE, params)).then(kiosk => Promise.resolve(Util.format(TABLE, kiosk)));
+        return DB.one(dbc, TABLE, '*', Util.getCond(params));
     }
 
     /**
@@ -41,4 +41,4 @@ class Kiosk{
     }
 }
 
-module.exports = Kiosk;
+module.exports = User;

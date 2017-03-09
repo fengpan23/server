@@ -5,23 +5,34 @@
 const _ = require('underscore');
 
 class Util {
-    constructor() {}
-
-    static format(str, input, plus) {
+    /**
+     * 字符串的拼接|截取
+     * @param  input {Object}
+     * @param  {[type]}
+     * @param  {[type]}
+     * @return {[type]}
+     */
+    static format(input, str, plus) {
         let results = {};
         let start = typeof str === 'number' ? str : str.length + 1;
         let st = str ?　str + '_' : '';
         for(let key in input){
-            let k = plus ? st + key.toLowerCase() : key.toLowerCase().substr(start);
+            let k = plus ? st + key : key.substr(start);
             results[k] = input[key];
         }
         return results;
     }
 
-    static getCond(plus, input){
+    /**
+     * 获取查询条件 
+     * @param  input {Array}
+     * @param  plus {String}
+     * @return {[Array]}
+     */
+    static getCond(input, plus){
         let results = [];
         for(let key in _.omit(input, v => !v)){
-            results.push({[plus ?　plus + '_' + key.toLowerCase() : key.toLowerCase()]: input[key]});
+            results.push({[plus ?　plus + '_' + key : key]: input[key]});
         }
         return results;
     }

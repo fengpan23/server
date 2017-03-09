@@ -72,7 +72,7 @@ class Index extends Server{
         return Promise.all([...this._modules.values()].map(module => module.start())).then(() => {
             return this._game.start([...this._players.values()]);
         }).then(res => {
-            console.log('game opened open: ', res);
+            console.log('game opened open: \n', res);
             if(options && options.retry){      //如果开场失败， 尝试重试开场， 如果部分玩家开场失败，踢掉开场失败玩家 ...
                 //    TODO
             }
@@ -112,7 +112,7 @@ class Index extends Server{
     };
 
     /**
-     * close game
+     * close game, when game finish a round (一局结束，清算记录)
      * @returns {*}
      */
     close(){
@@ -136,7 +136,7 @@ class Index extends Server{
     }
 
     /**
-     * game exit
+     * game exit， when process exit or some unCatch error or ... if game had opened close game（退出进程， 数据记录）
      * @returns {*|Promise.<TResult>}
      */
     exit() {
@@ -146,6 +146,11 @@ class Index extends Server{
         return Promise.resolve();
     };
 
+    /**
+     * about game info and config
+     * @param name  ['game' | 'table' | 'setting']
+     * @return {*}
+     */
     get(name){
         return this._game[name];
     }

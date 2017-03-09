@@ -227,14 +227,15 @@ class Transact {
 
     addTransaction(dbc, options) {
         return KioskWallet.getForUpdate(dbc, _.pick(options, 'kioskId', 'name', 'pType')).then(wallet => {
+                console.log('options: ', options);
+                console.log('wallet: ', wallet);
                 let balance = wallet.balance + options.amount;
                 if (balance < 0)
                     return Promise.reject({code: 'insufficient_fund', message: `balance: ${wallet.balance} options.amount: ${options.amount} on addTransact`});
 
                 let trx = _.pick(options, 'agencyId', 'kioskId', 'gameId', 'matchId', 'pType', 'name', 'amount', 'refund', 'jpType', 'type', 'kioskType');
-                trx.openbal = wallet.balance;
-                trx.closebal = balance;
-
+                trx.openbal = wallet.balance || 0;
+                trx.closebal = balance || 0;
                 return KioskWalletTrx.add(dbc, trx).then(() => {
 
                     if (options.amount < 0 && options.type === 4) {         //rolling

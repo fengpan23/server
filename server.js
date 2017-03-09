@@ -12,18 +12,16 @@ const Engine = require('engine');
 const DB = require('./module/db');
 const API = require('./module/api');
 const Game = require('./module/game');
-const Config = require('./module/config');
+const Config = require('./config/config');
 const Player = require('./module/player');
 
 class Server extends Events {
     /**
      * init game server
-     * @param options  {object}   {
-     *                  deposit: Boolean
-     *                  infirm: Boolean,     true相同账号登录被强退
-     *                  tableId: Number,
-     *                  api: {join: Func， seat: Func, ....}
-     *             }
+     * @param options  {object}
+     *            infirm: Boolean,     true相同账号登录被强退
+     *            tableId: Number,
+     *            api: {join: Func， seat: Func, ....}
      */
     constructor(options) {
         super();
@@ -49,6 +47,8 @@ class Server extends Events {
         this._game.init(_.pick(options, 'tableId')).then(res => {
             this._engine.start(_.extend({type: 'net'},  _.pick(res, 'port', 'ip')));      //port and ip to create socket server  default port:2323, ip:localhost
             this._api.start(res.port - 10000 || 10000);
+
+            this.emit('start');
         }).catch(e => {
             this._game.exit();
             Log.error('Game init error server.game.init: ', e);
@@ -57,7 +57,7 @@ class Server extends Events {
         this._modules = new Map();
         this._players = new Map();
 
-        process.env.TIMEZONE = this._config.get('timezone');
+        process.env.TIMEZONE = this._config.get('timezone') || '';
         process.on('uncaughtException', err => {
             console.error('server uncaughtException', err);
         });
@@ -76,9 +76,6 @@ class Server extends Events {
 
     get db(){
         return this._db;
-    }
-    get config(){
-        return this._config;
     }
     get players(){
         return [...this._players.values()];
@@ -121,7 +118,7 @@ class Server extends Events {
                         request.error('invalid_action', action);
                     }
                 }).catch(e => {
-                    Log.error(e);
+                    Log.error('player auth error: ', e);
                     request.error(e.code, e.message);
                 });
             }

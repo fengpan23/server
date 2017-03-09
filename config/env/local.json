@@ -8,7 +8,7 @@
                   "host": "127.0.0.1",
                   "user": "game",
                   "password": "game123",
-                  "database": "stargame_bigtwo",
+                  "database": "f_game",
                   "dateStrings": true
              }
         },

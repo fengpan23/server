@@ -83,8 +83,11 @@ class Handle{
     }
 
     _tran(dbc, options){
-        let opt = _.pick(options, 'kioskId', 'gameId', 'name', 'pType', 'trxType');
+        let opt = _.pick(options, 'amount', 'kioskId', 'gameId', 'name', 'pType', 'trxType');
         opt.jpType = opt.refund = opt.matchId = 0;
+
+        return Promise.resolve();
+        //TODO recode tran
         return Transact.addTransaction(dbc, opt).then(wallet => {
             // console.log('wallet: ', wallet);
             return Member.get(dbc, {kioskId: options.kioskId});

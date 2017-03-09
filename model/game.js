@@ -15,7 +15,7 @@ class Game {
      * @param id
      */
     static get(dbc, id) {
-        return db.one(dbc, TABLE, '*', [{game_id: id}]).then(game => Promise.resolve(Util.format(TABLE, game)));
+        return db.one(dbc, TABLE, '*', [{id: id}]).then(game => Promise.resolve(Util.format(TABLE, game)));
     }
 
     static update(dbc, id, data) {

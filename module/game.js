@@ -2,14 +2,12 @@
  * Created by fp on 2016/10/14.
  */
 const _ = require('underscore');
+const Util = require('../libs/util');
 
-const Table = require('../model/table');
-const Room = require('../model/room');
+const Table = require('../model/game_table');
 const Match = require('../model/match');
-const AgencyGame = require('../model/agency_game');
 
 const Seats = require('./seats');
-const Profile = require('./profile');
 
 class G{
     constructor(db){
@@ -17,7 +15,6 @@ class G{
         this._table = {};
 
         this._seats = new Seats();
-        this._profile = new Profile();
 
         this._db = db;
     }
@@ -28,17 +25,15 @@ class G{
     get table(){
         return Object.assign({}, this._table);
     }
-    get profile(){
-        return Object.assign({}, this._profile);
-    }
 
     init(options){
+        console.log('options: ', options);
         return this._db.begin().then(dbc =>
             this._init(dbc, options).then(() => {
                 if (this._table.curkiosk > 0 || this._table.status === 2) {
                     this._table.curkiosk = 0;
                     this._table.status = 1;
-                    return Table.update(dbc, {tableId: this._table.id}, {curkiosk: 0, status: 1});
+                    return Table.update(dbc, {id: this._table.id}, {curkiosk: 0, status: 1});
                 }
                 return Promise.resolve();
             }).then(() => {
@@ -99,7 +94,7 @@ class G{
 
             return this._seats.choose(dbc, opt).then(res => {
                 seatIndex = res.index;
-                return Table.update(dbc, _.pick(opt, 'tableId', 'gameId'), {curkiosk: res.cur});
+                return Table.update(dbc, {id: opt.tableId, gameId: opt.gameId}, {curKiosk: res.cur});
             }).then(() => {
                 return this._db.over(dbc).then(() => Promise.resolve(seatIndex));
             }).catch(e => {
@@ -125,7 +120,7 @@ class G{
                 index: player.index
             };
             return this._seats.leave(dbc, params).then(cur => {
-                return Table.update(dbc, _.pick(params, 'tableId', 'gameId'), {curkiosk: cur});
+                return Table.update(dbc, {id: params.tableId, gameId: params.gameId}, {curkiosk: cur});
             }).then(() => {
                 return this._db.over(dbc);
             }).catch(e => {
@@ -142,10 +137,6 @@ class G{
     start(players){
         if (this._table.status === 0) {     // 检查桌子是否激活
             return Promise.reject({code: 'system_maintenance', message: 'Table is not active status on game.start'});
-        } else if (this._profile.setting['system_maintenance'] !== 0) {    //检查是否系统维护
-            return Promise.reject({code: 'system_maintenance', message: 'System Maintenance on game.start'});
-        } else if (this._profile.game['status'] !== 1) {            //检查游戏是否关闭
-            return Promise.reject({code: 'system_maintenance', message: 'Game is not active status on game.start'});
         }
 
         return this._db.begin().then(dbc =>
@@ -154,14 +145,13 @@ class G{
                 return AgencyGame.find(dbc, params);
             }).then(eg => {
                 if (_.isEmpty(eg))
-                    return Promise.reject({code: 'system_maintenance', message: 'on agency games on Game.start'});
+                    return Promise.reject({code: 'system_maintenance', message: 'No agency games on game.start'});
 
-                // let dbnow = common.datetimezoneformat(new Date(), configs.envconf().timezone);
-                let params = {tableId: this._table.id, gameId: this._table.gameid};
-                let data = {lastmatch: +new Date()};
+                let params = {id: this._table.id, gameId: this._table.gameid};
+                let data = {lastMatch: Util.formatDate(new Date(), process.env.TIMEZONE)};
 
                 return Table.update(dbc, params, data).then(() => {
-                    let data = {agentId: this._table.poolagentid, tableId: this._table.tableid, gameId: this._table.gameid, matchStart: +new Date(), state: "open"};
+                    let data = {agentId: this._table.topagentid, tableId: this._table.id, gameId: this._table.gameid, matchStart: Util.formatDate(new Date(), process.env.TIMEZONE), state: "open"};
                     return Match.insert(dbc, data)
                 });
             }).then(res => {
@@ -240,7 +230,8 @@ class G{
      * @returns {*}
      */
     auth(player, options){
-        if(player.id)return Promise.resolve({status: 'ok'});
+        if(player.id)
+            return Promise.resolve({status: 'ok'});
 
         return this._db.begin().then(dbc =>
             player.init(dbc, options)
@@ -250,20 +241,13 @@ class G{
     }
 
     _init(dbc, options){
-        return Table.get(dbc, {tableId: options.tableId}).then(table => {
-                if (_.isEmpty(table)) return Promise.reject({code: 'invalid_params', message: 'table not exits on game.init'});
+        return Table.get(dbc, {id: options.tableId}).then(table => {
+            if (_.isEmpty(table)) 
+                return Promise.reject({code: 'invalid_params', message: 'table not exits on game.init'});
 
-                this._table = table;
-                if(table.roomid) {
-                    Room.get(dbc, {roomId: table.roomid}).then(room => {
-                        _.extend(table, _.omit(room, 'id'));
-                    });
-                }
-
-                return this._seats.init(dbc, table, options.reload);
-            }).then(() => {
-                return this._profile.init(dbc, _.pick(this._table, 'gameid', 'topagentid', 'agentid', 'ptype', 'agentid'));
-            });
+            this._table = table;
+            return this._seats.init(dbc, table);
+        });
     }
 }
 

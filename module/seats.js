@@ -3,7 +3,7 @@
  */
 const _ = require('underscore');
 const Util = require('../libs/util');
-const Seat = require('../model/seat');
+const SeatModel = require('../model/game_seat');
 
 class Seats {
     constructor() {
@@ -27,42 +27,15 @@ class Seats {
         return false;
     }
 
-    init(dbc, table, reload){
-        return Seat.find(dbc, {tableId: table.id}).then(seats => {
-            let all = [];
-            let updateIndex = [];
+    init(dbc, table){
+        return SeatModel.find(dbc, {tableId: table.id}).then(seats => {
+            seats.forEach(seat => {
+                this._seats.set(seat.index, {status:　'empty'});
+            });
 
-            if (reload) {
-                seats.forEach(function (seat) {
-                    if (seats[seat.index] == 'empty' && seat.state !== 'idle')
-                        updateIndex.push(seat.index);
-                });
-            } else {
-                seats.forEach(seat => {
-                    if (seat.state !== 'idle' || seat.kioskid !== null || seat.agentid !== table.agentid || seat.gameid !== table.gameid || seat.roomid !== table.roomid)
-                        updateIndex.push(seat.index);
-
-                    this._seats.set(seat.index, {status:　'empty'});
-                });
-
-                let insert = [];
-                let now = Util.formatDate(new Date(), process.env.TIMEZONE);
-
-                for (let i = 1; i <= table.maxkiosk; i++) {
-                    if (_.isEmpty(seats[i - 1])) {
-                        insert.push([i, table.agentid, table.gameid, table.roomid, table.id, 'idle', 0, now, now]);
-                        this._seats.set(i, {status: 'empty'});
-                    }
-                }
-                let fields = ['index', 'agentId', 'gameId', 'roomId', 'tableId', 'state', 'kioskId', 'updated', 'created'];
-                insert.length > 0 && all.push(Seat.insert(dbc, fields, insert));
-            }
-
-            if (updateIndex.length > 0) {       //重置座位
-                let data = {gameId: table.gameid, roomId: table.roomid, state: 'idle', kioskId: null, ip: '0.0.0.0', port: 0};
-                all.push(Seat.update(dbc, {tableId: table.id, index: {IN: updateIndex}}, data));
-            }
-            return Promise.all(all);
+            //update seat status
+            let data = {gameId: table.gameId, status: 'idle', userId: null, userIp: '0.0.0.0', userPort: 0};
+            return SeatModel.update(dbc, {tableId: table.id}, data);
         });
     }
 
@@ -97,7 +70,7 @@ class Seats {
 
         let data = _.pick(opt, 'kioskId', 'ip', 'port');
 
-        return Seat.update(dbc, params, data).then(() => {
+        return SeatModel.update(dbc, params, data).then(() => {
             this._seats.set(seatIndex, {status: 'seated', kioskId: opt.kioskId, remote: _.pick(opt, 'ip', 'port')});
             let cur = 0;
             for (let v of this._seats.values())
@@ -118,7 +91,7 @@ class Seats {
             return Promise.reject({code: 'invalid_call', message: 'error seat index: ' + opt.index});
 
         let data = {state: 'idle', kioskId: null, ip: '0.0.0.0', port: 0};
-        return Seat.update(dbc, opt, data).then(() => {
+        return SeatModel.update(dbc, opt, data).then(() => {
             this._seats.set(opt.index, {status: 'empty'});
             let cur = 0;
             for (let v of this._seats.values())
